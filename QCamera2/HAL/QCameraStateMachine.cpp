@@ -516,11 +516,14 @@ int32_t QCameraStateMachine::procEvtPreviewStoppedState(qcamera_sm_evt_enum_t ev
         break;
     case QCAMERA_SM_EVT_STOP_AUTO_FOCUS:
         {
+            bool isAFRunning = m_parent->isAFRunning();
             rc = m_parent->cancelAutoFocus();
-            result.status = rc;
-            result.request_api = evt;
-            result.result_type = QCAMERA_API_RESULT_TYPE_DEF;
-            m_parent->signalAPIResult(&result);
+            if (!isAFRunning) {
+                result.status = rc;
+                result.request_api = evt;
+                result.result_type = QCAMERA_API_RESULT_TYPE_DEF;
+                m_parent->signalAPIResult(&result);
+            }
         }
         break;
     case QCAMERA_SM_EVT_REG_FACE_IMAGE:
@@ -783,11 +786,14 @@ int32_t QCameraStateMachine::procEvtPreviewReadyState(qcamera_sm_evt_enum_t evt,
         break;
     case QCAMERA_SM_EVT_STOP_AUTO_FOCUS:
         {
+            bool isAFRunning = m_parent->isAFRunning();
             rc = m_parent->cancelAutoFocus();
-            result.status = rc;
-            result.request_api = evt;
-            result.result_type = QCAMERA_API_RESULT_TYPE_DEF;
-            m_parent->signalAPIResult(&result);
+            if (!isAFRunning) {
+                result.status = rc;
+                result.request_api = evt;
+                result.result_type = QCAMERA_API_RESULT_TYPE_DEF;
+                m_parent->signalAPIResult(&result);
+            }
         }
         break;
     case QCAMERA_SM_EVT_SEND_COMMAND:
@@ -1074,11 +1080,14 @@ int32_t QCameraStateMachine::procEvtPreviewingState(qcamera_sm_evt_enum_t evt,
         break;
     case QCAMERA_SM_EVT_STOP_AUTO_FOCUS:
         {
+            bool isAFRunning = m_parent->isAFRunning();
             rc = m_parent->cancelAutoFocus();
-            result.status = rc;
-            result.request_api = evt;
-            result.result_type = QCAMERA_API_RESULT_TYPE_DEF;
-            m_parent->signalAPIResult(&result);
+            if (!isAFRunning) {
+                result.status = rc;
+                result.request_api = evt;
+                result.result_type = QCAMERA_API_RESULT_TYPE_DEF;
+                m_parent->signalAPIResult(&result);
+            }
         }
         break;
     case QCAMERA_SM_EVT_START_RECORDING:
@@ -1585,11 +1594,14 @@ int32_t QCameraStateMachine::procEvtPicTakingState(qcamera_sm_evt_enum_t evt,
         break;
     case QCAMERA_SM_EVT_STOP_AUTO_FOCUS:
         {
+            bool isAFRunning = m_parent->isAFRunning();
             rc = m_parent->cancelAutoFocus();
-            result.status = rc;
-            result.request_api = evt;
-            result.result_type = QCAMERA_API_RESULT_TYPE_DEF;
-            m_parent->signalAPIResult(&result);
+            if (!isAFRunning) {
+                result.status = rc;
+                result.request_api = evt;
+                result.result_type = QCAMERA_API_RESULT_TYPE_DEF;
+                m_parent->signalAPIResult(&result);
+            }
         }
         break;
     case QCAMERA_SM_EVT_SEND_COMMAND:
@@ -1944,11 +1956,14 @@ int32_t QCameraStateMachine::procEvtRecordingState(qcamera_sm_evt_enum_t evt,
         break;
     case QCAMERA_SM_EVT_STOP_AUTO_FOCUS:
         {
+            bool isAFRunning = m_parent->isAFRunning();
             rc = m_parent->cancelAutoFocus();
-            result.status = rc;
-            result.request_api = evt;
-            result.result_type = QCAMERA_API_RESULT_TYPE_DEF;
-            m_parent->signalAPIResult(&result);
+            if (!isAFRunning) {
+                result.status = rc;
+                result.request_api = evt;
+                result.result_type = QCAMERA_API_RESULT_TYPE_DEF;
+                m_parent->signalAPIResult(&result);
+            }
         }
         break;
     case QCAMERA_SM_EVT_SEND_COMMAND:
@@ -2294,11 +2309,14 @@ int32_t QCameraStateMachine::procEvtVideoPicTakingState(qcamera_sm_evt_enum_t ev
         break;
     case QCAMERA_SM_EVT_STOP_AUTO_FOCUS:
         {
+            bool isAFRunning = m_parent->isAFRunning();
             rc = m_parent->cancelAutoFocus();
-            result.status = rc;
-            result.request_api = evt;
-            result.result_type = QCAMERA_API_RESULT_TYPE_DEF;
-            m_parent->signalAPIResult(&result);
+            if (!isAFRunning) {
+                result.status = rc;
+                result.request_api = evt;
+                result.result_type = QCAMERA_API_RESULT_TYPE_DEF;
+                m_parent->signalAPIResult(&result);
+            }
         }
         break;
     case QCAMERA_SM_EVT_SEND_COMMAND:
@@ -2640,11 +2658,14 @@ int32_t QCameraStateMachine::procEvtPreviewPicTakingState(qcamera_sm_evt_enum_t 
         break;
     case QCAMERA_SM_EVT_STOP_AUTO_FOCUS:
         {
+            bool isAFRunning = m_parent->isAFRunning();
             rc = m_parent->cancelAutoFocus();
-            result.status = rc;
-            result.request_api = evt;
-            result.result_type = QCAMERA_API_RESULT_TYPE_DEF;
-            m_parent->signalAPIResult(&result);
+            if (!isAFRunning) {
+                result.status = rc;
+                result.request_api = evt;
+                result.result_type = QCAMERA_API_RESULT_TYPE_DEF;
+                m_parent->signalAPIResult(&result);
+            }
         }
         break;
     case QCAMERA_SM_EVT_SEND_COMMAND:
