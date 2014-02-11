@@ -1565,6 +1565,12 @@ QCameraMemory *QCamera2HardwareInterface::allocateStreamBuf(cam_stream_type_t st
     int rc = NO_ERROR;
     QCameraMemory *mem = NULL;
     bool bCachedMem = QCAMERA_ION_USE_CACHE;
+    bool bPoolMem = false;
+    char value[PROPERTY_VALUE_MAX];
+    property_get("persist.camera.mem.usepool", value, "1");
+    if (atoi(value) == 1) {
+        bPoolMem = true;
+    }
 
     // Allocate stream buffer memory object
     switch (stream_type) {
@@ -1572,9 +1578,9 @@ QCameraMemory *QCamera2HardwareInterface::allocateStreamBuf(cam_stream_type_t st
         {
             if (isNoDisplayMode()) {
                 mem = new QCameraStreamMemory(mGetMemory,
-                                              bCachedMem,
-                                              &m_memoryPool,
-                                              stream_type);
+                        bCachedMem,
+                        (bPoolMem) ? &m_memoryPool : NULL,
+                        stream_type);
             } else {
                 cam_dimension_t dim;
                 QCameraGrallocMemory *grallocMemory =
@@ -1616,9 +1622,9 @@ QCameraMemory *QCamera2HardwareInterface::allocateStreamBuf(cam_stream_type_t st
     case CAM_STREAM_TYPE_METADATA:
     case CAM_STREAM_TYPE_OFFLINE_PROC:
         mem = new QCameraStreamMemory(mGetMemory,
-                                      bCachedMem,
-                                      &m_memoryPool,
-                                      stream_type);
+                bCachedMem,
+                (bPoolMem) ? &m_memoryPool : NULL,
+                stream_type);
         break;
     case CAM_STREAM_TYPE_VIDEO:
         {
