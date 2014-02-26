@@ -17,7 +17,7 @@ ifeq ($(strip $(TARGET_USES_ION)),true)
     LOCAL_CFLAGS += -DUSE_ION
 endif
 
-ifeq ($(call is-board-platform-in-list,msm8974 msm8226 msm8610),true)
+ifeq ($(call is-board-platform-in-list,msm8974 msm8916 msm8226 msm8610),true)
     LOCAL_CFLAGS += -DVENUS_PRESENT
 endif
 
