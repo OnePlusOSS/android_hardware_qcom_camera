@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2013, The Linux Foundataion. All rights reserved.
+/* Copyright (c) 2012-2014, The Linux Foundataion. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -86,6 +86,7 @@ typedef enum {
     QCAMERA_SM_EVT_SNAPSHOT_DONE,            // internal evt that snapshot is done
     QCAMERA_SM_EVT_THERMAL_NOTIFY,           // evt notify from thermal daemon
     QCAMERA_SM_EVT_STOP_CAPTURE_CHANNEL,     // stop capture channel
+    QCAMERA_SM_EVT_RESTART_PERVIEW,          // internal preview restart
     QCAMERA_SM_EVT_MAX
 } qcamera_sm_evt_enum_t;
 
