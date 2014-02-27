@@ -589,6 +589,7 @@ public:
     int32_t commitAFBracket(cam_af_bracketing_t afBracket);
     int32_t commitFlashBracket(cam_flash_bracketing_t flashBracket);
     int32_t set3ALock(const char *lockStr);
+    int32_t setFocusMode(const char *focusMode);
     int32_t setAndCommitZoom(int zoom_level);
     uint8_t getBurstCountForBracketing();
     inline bool isUbiRefocus() {return isUbiFocusEnabled() &&
@@ -676,7 +677,6 @@ private:
             int vid_min_fps,int vid_max_fps);
     int32_t setEffect(const char *effect);
     int32_t setBrightness(int brightness);
-    int32_t setFocusMode(const char *focusMode);
     int32_t setFocusPosition(const char *typeStr, const char *posStr);
     int32_t setSharpness(int sharpness);
     int32_t setSaturation(int saturation);
