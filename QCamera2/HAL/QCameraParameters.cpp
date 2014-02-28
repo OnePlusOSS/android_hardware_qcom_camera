@@ -7024,6 +7024,31 @@ int32_t QCameraParameters::getStreamDimension(cam_stream_type_t streamType,
         break;
     case CAM_STREAM_TYPE_POSTVIEW:
         getPreviewSize(&dim.width, &dim.height);
+        //For CTS testPreviewPictureSizesCombination
+        int cur_pic_width, cur_pic_height;
+        CameraParameters::getPictureSize(&cur_pic_width, &cur_pic_height);
+        if ((dim.width > cur_pic_width && dim.height < cur_pic_height)
+                || (dim.width < cur_pic_width && dim.height > cur_pic_height)) {
+            size_t k;
+            for (k = 0; k < m_pCapability->preview_sizes_tbl_cnt; ++k) {
+                if (cur_pic_width >= m_pCapability->preview_sizes_tbl[k].width
+                    && cur_pic_height >= m_pCapability->preview_sizes_tbl[k].height) {
+                    dim.width = m_pCapability->preview_sizes_tbl[k].width;
+                    dim.height = m_pCapability->preview_sizes_tbl[k].height;
+                    ALOGV("%s:re-set size, pic_width=%d, pic_height=%d, pre_width=%d,pre_height=%d",
+                            __func__,cur_pic_width,cur_pic_height, dim.width, dim.height);
+                    break;
+                 }
+            }
+            if (k == m_pCapability->preview_sizes_tbl_cnt) {
+                // Assign the Picture size to Preview size
+                dim.width = cur_pic_width;
+                dim.height = cur_pic_height;
+                ALOGV("%s: re-set size, pic_width=%d, pic_height=%d, pre_width=%d, pre_height=%d.",
+                        __func__,cur_pic_width, cur_pic_height, dim.width, dim.height);
+           }
+
+        }
         break;
     case CAM_STREAM_TYPE_SNAPSHOT:
         if (getRecordingHintValue() == true) {
