@@ -1547,7 +1547,7 @@ uint8_t get_num_of_cameras()
     return g_cam_ctrl.num_cam;
 }
 
-struct camera_info *get_cam_info(int camera_id)
+struct camera_info *get_cam_info(uint32_t camera_id)
 {
     return &g_cam_ctrl.info[camera_id];
 }

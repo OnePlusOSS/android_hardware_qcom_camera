@@ -282,7 +282,7 @@ int mm_app_alloc_bufs(mm_camera_app_buf_t* app_bufs,
                       uint8_t is_streambuf,
                       size_t multipleOf)
 {
-    int i, j;
+    uint32_t i, j;
     int ion_type = 0x1 << CAMERA_ION_FALLBACK_HEAP_ID;
 
     if (is_streambuf) {
@@ -440,14 +440,14 @@ int32_t mm_app_stream_deinitbuf(mm_camera_map_unmap_ops_tbl_t *ops_tbl,
     return 0;
 }
 
-int32_t mm_app_stream_clean_invalidate_buf(int index, void *user_data)
+int32_t mm_app_stream_clean_invalidate_buf(uint32_t index, void *user_data)
 {
     mm_camera_stream_t *stream = (mm_camera_stream_t *)user_data;
     return mm_app_cache_ops(&stream->s_bufs[index].mem_info,
       ION_IOC_CLEAN_INV_CACHES);
 }
 
-int32_t mm_app_stream_invalidate_buf(int index, void *user_data)
+int32_t mm_app_stream_invalidate_buf(uint32_t index, void *user_data)
 {
     mm_camera_stream_t *stream = (mm_camera_stream_t *)user_data;
     return mm_app_cache_ops(&stream->s_bufs[index].mem_info, ION_IOC_INV_CACHES);

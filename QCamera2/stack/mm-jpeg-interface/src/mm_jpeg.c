@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -2105,7 +2105,7 @@ int32_t mm_jpeg_create_session(mm_jpeg_obj *my_obj,
   mm_jpeg_job_session_t *p_session = NULL;
   mm_jpeg_job_session_t * p_prev_session = NULL;
   *p_session_id = 0;
-  unsigned int i = 0;
+  uint32_t i = 0;
   uint32_t num_omx_sessions;
   uint32_t work_buf_size;
   mm_jpeg_queue_t *p_session_handle_q, *p_out_buf_q;
