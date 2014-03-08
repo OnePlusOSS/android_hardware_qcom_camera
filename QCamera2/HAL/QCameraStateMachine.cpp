@@ -1741,10 +1741,6 @@ int32_t QCameraStateMachine::procEvtPicTakingState(qcamera_sm_evt_enum_t evt,
                 }
             }
 
-            result.status = rc;
-            result.request_api = evt;
-            result.result_type = QCAMERA_API_RESULT_TYPE_DEF;
-            m_parent->signalAPIResult(&result);
         }
         break;
     case QCAMERA_SM_EVT_SNAPSHOT_DONE:
