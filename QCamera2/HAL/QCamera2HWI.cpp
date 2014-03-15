@@ -620,10 +620,6 @@ int QCamera2HardwareInterface::take_picture(struct camera_device *device)
         }
     }
 
-    if (hw->mParameters.isUbiFocusEnabled()) {
-        hw->mParameters.setFocusMode("infinity");
-    }
-
     /* Regardless what the result value for prepare_snapshot,
      * go ahead with capture anyway. Just like the way autofocus
      * is handled in capture case. */
