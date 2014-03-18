@@ -639,6 +639,7 @@ QCameraParameters::QCameraParameters()
       m_bHDREnabled(false),
       m_bAVTimerEnabled(false),
       m_bMobiEnabled(false),
+      m_bDISEnabled(false),
       m_AdjustFPS(NULL),
       m_bHDR1xFrameEnabled(true),
       m_HDRSceneEnabled(false),
@@ -5559,6 +5560,11 @@ int32_t QCameraParameters::setDISValue(const char *disStr)
         if (value != NAME_NOT_FOUND) {
             ALOGV("%s: Setting DIS value %s", __func__, disStr);
             updateParamEntry(KEY_QC_DIS, disStr);
+            if (!(strcmp(disStr,"enable"))) {
+                m_bDISEnabled = true;
+            } else {
+                m_bDISEnabled = false;
+            }
             return AddSetParmEntryToBatch(m_pParamBuf,
                                           CAM_INTF_PARM_DIS_ENABLE,
                                           sizeof(value),
@@ -5566,6 +5572,7 @@ int32_t QCameraParameters::setDISValue(const char *disStr)
         }
     }
     ALOGE("Invalid DIS value: %s", (disStr == NULL) ? "NULL" : disStr);
+    m_bDISEnabled = false;
     return BAD_VALUE;
 }
 
@@ -8887,6 +8894,21 @@ bool QCameraParameters::isHDREnabled()
 bool QCameraParameters::isAVTimerEnabled()
 {
     return m_bAVTimerEnabled;
+}
+
+/*===========================================================================
+* FUNCTION   : isDISEnabled
+*
+* DESCRIPTION: if DIS is enabled
+*
+* PARAMETERS : none
+*
+* RETURN    : true: needed
+*               false: no need
+*==========================================================================*/
+bool QCameraParameters::isDISEnabled()
+{
+    return m_bDISEnabled;
 }
 
 /*===========================================================================
