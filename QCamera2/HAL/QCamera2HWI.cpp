@@ -124,10 +124,11 @@ int QCamera2HardwareInterface::set_preview_window(struct camera_device *device,
     }
 
     hw->lockAPI();
+    qcamera_api_result_t apiResult;
     rc = hw->processAPI(QCAMERA_SM_EVT_SET_PREVIEW_WINDOW, (void *)window);
     if (rc == NO_ERROR) {
-        hw->waitAPIResult(QCAMERA_SM_EVT_SET_PREVIEW_WINDOW);
-        rc = hw->m_apiResult.status;
+        hw->waitAPIResult(QCAMERA_SM_EVT_SET_PREVIEW_WINDOW, &apiResult);
+        rc = apiResult.status;
     }
     hw->unlockAPI();
 
@@ -171,9 +172,10 @@ void QCamera2HardwareInterface::set_CallBacks(struct camera_device *device,
     payload.user = user;
 
     hw->lockAPI();
+    qcamera_api_result_t apiResult;
     int32_t rc = hw->processAPI(QCAMERA_SM_EVT_SET_CALLBACKS, (void *)&payload);
     if (rc == NO_ERROR) {
-        hw->waitAPIResult(QCAMERA_SM_EVT_SET_CALLBACKS);
+        hw->waitAPIResult(QCAMERA_SM_EVT_SET_CALLBACKS, &apiResult);
     }
     hw->unlockAPI();
 }
@@ -198,9 +200,10 @@ void QCamera2HardwareInterface::enable_msg_type(struct camera_device *device, in
         return;
     }
     hw->lockAPI();
+    qcamera_api_result_t apiResult;
     int32_t rc = hw->processAPI(QCAMERA_SM_EVT_ENABLE_MSG_TYPE, (void *)msg_type);
     if (rc == NO_ERROR) {
-        hw->waitAPIResult(QCAMERA_SM_EVT_ENABLE_MSG_TYPE);
+        hw->waitAPIResult(QCAMERA_SM_EVT_ENABLE_MSG_TYPE, &apiResult);
     }
     hw->unlockAPI();
 }
@@ -225,9 +228,10 @@ void QCamera2HardwareInterface::disable_msg_type(struct camera_device *device, i
         return;
     }
     hw->lockAPI();
+    qcamera_api_result_t apiResult;
     int32_t rc = hw->processAPI(QCAMERA_SM_EVT_DISABLE_MSG_TYPE, (void *)msg_type);
     if (rc == NO_ERROR) {
-        hw->waitAPIResult(QCAMERA_SM_EVT_DISABLE_MSG_TYPE);
+        hw->waitAPIResult(QCAMERA_SM_EVT_DISABLE_MSG_TYPE, &apiResult);
     }
     hw->unlockAPI();
 }
@@ -254,10 +258,11 @@ int QCamera2HardwareInterface::msg_type_enabled(struct camera_device *device, in
         return BAD_VALUE;
     }
     hw->lockAPI();
+    qcamera_api_result_t apiResult;
     ret = hw->processAPI(QCAMERA_SM_EVT_MSG_TYPE_ENABLED, (void *)msg_type);
     if (ret == NO_ERROR) {
-        hw->waitAPIResult(QCAMERA_SM_EVT_MSG_TYPE_ENABLED);
-        ret = hw->m_apiResult.enabled;
+        hw->waitAPIResult(QCAMERA_SM_EVT_MSG_TYPE_ENABLED, &apiResult);
+        ret = apiResult.enabled;
     }
     hw->unlockAPI();
 
@@ -287,14 +292,15 @@ int QCamera2HardwareInterface::start_preview(struct camera_device *device)
     }
     ALOGE("[KPI Perf] %s: E PROFILE_START_PREVIEW", __func__);
     hw->lockAPI();
+    qcamera_api_result_t apiResult;
     qcamera_sm_evt_enum_t evt = QCAMERA_SM_EVT_START_PREVIEW;
     if (hw->isNoDisplayMode()) {
         evt = QCAMERA_SM_EVT_START_NODISPLAY_PREVIEW;
     }
     ret = hw->processAPI(evt, NULL);
     if (ret == NO_ERROR) {
-        hw->waitAPIResult(evt);
-        ret = hw->m_apiResult.status;
+        hw->waitAPIResult(evt, &apiResult);
+        ret = apiResult.status;
     }
     hw->unlockAPI();
     hw->m_bPreviewStarted = true;
@@ -322,9 +328,10 @@ void QCamera2HardwareInterface::stop_preview(struct camera_device *device)
     }
     ALOGE("[KPI Perf] %s: E PROFILE_STOP_PREVIEW", __func__);
     hw->lockAPI();
+    qcamera_api_result_t apiResult;
     int32_t ret = hw->processAPI(QCAMERA_SM_EVT_STOP_PREVIEW, NULL);
     if (ret == NO_ERROR) {
-        hw->waitAPIResult(QCAMERA_SM_EVT_STOP_PREVIEW);
+        hw->waitAPIResult(QCAMERA_SM_EVT_STOP_PREVIEW, &apiResult);
     }
     hw->unlockAPI();
     ALOGD("[KPI Perf] %s: X", __func__);
@@ -352,10 +359,11 @@ int QCamera2HardwareInterface::preview_enabled(struct camera_device *device)
     }
 
     hw->lockAPI();
+    qcamera_api_result_t apiResult;
     ret = hw->processAPI(QCAMERA_SM_EVT_PREVIEW_ENABLED, NULL);
     if (ret == NO_ERROR) {
-        hw->waitAPIResult(QCAMERA_SM_EVT_PREVIEW_ENABLED);
-        ret = hw->m_apiResult.enabled;
+        hw->waitAPIResult(QCAMERA_SM_EVT_PREVIEW_ENABLED, &apiResult);
+        ret = apiResult.enabled;
     }
     hw->unlockAPI();
 
@@ -387,10 +395,11 @@ int QCamera2HardwareInterface::store_meta_data_in_buffers(
     }
 
     hw->lockAPI();
+    qcamera_api_result_t apiResult;
     ret = hw->processAPI(QCAMERA_SM_EVT_STORE_METADATA_IN_BUFS, (void *)enable);
     if (ret == NO_ERROR) {
-        hw->waitAPIResult(QCAMERA_SM_EVT_STORE_METADATA_IN_BUFS);
-        ret = hw->m_apiResult.status;
+        hw->waitAPIResult(QCAMERA_SM_EVT_STORE_METADATA_IN_BUFS, &apiResult);
+        ret = apiResult.status;
     }
     hw->unlockAPI();
 
@@ -420,10 +429,11 @@ int QCamera2HardwareInterface::start_recording(struct camera_device *device)
     }
     ALOGE("[KPI Perf] %s: E PROFILE_START_RECORDING", __func__);
     hw->lockAPI();
+    qcamera_api_result_t apiResult;
     ret = hw->processAPI(QCAMERA_SM_EVT_START_RECORDING, NULL);
     if (ret == NO_ERROR) {
-        hw->waitAPIResult(QCAMERA_SM_EVT_START_RECORDING);
-        ret = hw->m_apiResult.status;
+        hw->waitAPIResult(QCAMERA_SM_EVT_START_RECORDING, &apiResult);
+        ret = apiResult.status;
     }
     hw->unlockAPI();
     hw->m_bRecordStarted = true;
@@ -451,9 +461,10 @@ void QCamera2HardwareInterface::stop_recording(struct camera_device *device)
     }
     ALOGE("[KPI Perf] %s: E PROFILE_STOP_RECORDING", __func__);
     hw->lockAPI();
+    qcamera_api_result_t apiResult;
     int32_t ret = hw->processAPI(QCAMERA_SM_EVT_STOP_RECORDING, NULL);
     if (ret == NO_ERROR) {
-        hw->waitAPIResult(QCAMERA_SM_EVT_STOP_RECORDING);
+        hw->waitAPIResult(QCAMERA_SM_EVT_STOP_RECORDING, &apiResult);
     }
     hw->unlockAPI();
     ALOGD("[KPI Perf] %s: X", __func__);
@@ -480,10 +491,11 @@ int QCamera2HardwareInterface::recording_enabled(struct camera_device *device)
         return BAD_VALUE;
     }
     hw->lockAPI();
+    qcamera_api_result_t apiResult;
     ret = hw->processAPI(QCAMERA_SM_EVT_RECORDING_ENABLED, NULL);
     if (ret == NO_ERROR) {
-        hw->waitAPIResult(QCAMERA_SM_EVT_RECORDING_ENABLED);
-        ret = hw->m_apiResult.enabled;
+        hw->waitAPIResult(QCAMERA_SM_EVT_RECORDING_ENABLED, &apiResult);
+        ret = apiResult.enabled;
     }
     hw->unlockAPI();
 
@@ -512,9 +524,10 @@ void QCamera2HardwareInterface::release_recording_frame(
     }
     ALOGD("%s: E", __func__);
     hw->lockAPI();
+    qcamera_api_result_t apiResult;
     int32_t ret = hw->processAPI(QCAMERA_SM_EVT_RELEASE_RECORIDNG_FRAME, (void *)opaque);
     if (ret == NO_ERROR) {
-        hw->waitAPIResult(QCAMERA_SM_EVT_RELEASE_RECORIDNG_FRAME);
+        hw->waitAPIResult(QCAMERA_SM_EVT_RELEASE_RECORIDNG_FRAME, &apiResult);
     }
     hw->unlockAPI();
     ALOGD("%s: X", __func__);
@@ -543,10 +556,11 @@ int QCamera2HardwareInterface::auto_focus(struct camera_device *device)
     }
     ALOGE("[KPI Perf] %s : E PROFILE_AUTO_FOCUS", __func__);
     hw->lockAPI();
+    qcamera_api_result_t apiResult;
     ret = hw->processAPI(QCAMERA_SM_EVT_START_AUTO_FOCUS, NULL);
     if (ret == NO_ERROR) {
-        hw->waitAPIResult(QCAMERA_SM_EVT_START_AUTO_FOCUS);
-        ret = hw->m_apiResult.status;
+        hw->waitAPIResult(QCAMERA_SM_EVT_START_AUTO_FOCUS, &apiResult);
+        ret = apiResult.status;
     }
     hw->unlockAPI();
     ALOGD("[KPI Perf] %s : X", __func__);
@@ -577,10 +591,11 @@ int QCamera2HardwareInterface::cancel_auto_focus(struct camera_device *device)
     }
     ALOGE("[KPI Perf] %s : E PROFILE_CANCEL_AUTO_FOCUS", __func__);
     hw->lockAPI();
+    qcamera_api_result_t apiResult;
     ret = hw->processAPI(QCAMERA_SM_EVT_STOP_AUTO_FOCUS, NULL);
     if (ret == NO_ERROR) {
-        hw->waitAPIResult(QCAMERA_SM_EVT_STOP_AUTO_FOCUS);
-        ret = hw->m_apiResult.status;
+        hw->waitAPIResult(QCAMERA_SM_EVT_STOP_AUTO_FOCUS, &apiResult);
+        ret = apiResult.status;
     }
     hw->unlockAPI();
     ALOGD("[KPI Perf] %s : X", __func__);
@@ -610,13 +625,14 @@ int QCamera2HardwareInterface::take_picture(struct camera_device *device)
     }
     ALOGE("[KPI Perf] %s: E PROFILE_TAKE_PICTURE", __func__);
     hw->lockAPI();
+    qcamera_api_result_t apiResult;
 
     /* Prepare snapshot in case LED needs to be flashed */
     if (hw->mFlashNeeded == 1 || hw->mParameters.isChromaFlashEnabled()) {
         ret = hw->processAPI(QCAMERA_SM_EVT_PREPARE_SNAPSHOT, NULL);
         if (ret == NO_ERROR) {
-            hw->waitAPIResult(QCAMERA_SM_EVT_PREPARE_SNAPSHOT);
-            ret = hw->m_apiResult.status;
+            hw->waitAPIResult(QCAMERA_SM_EVT_PREPARE_SNAPSHOT, &apiResult);
+            ret = apiResult.status;
         }
     }
 
@@ -627,8 +643,8 @@ int QCamera2HardwareInterface::take_picture(struct camera_device *device)
     /* capture */
     ret = hw->processAPI(QCAMERA_SM_EVT_TAKE_PICTURE, NULL);
     if (ret == NO_ERROR) {
-        hw->waitAPIResult(QCAMERA_SM_EVT_TAKE_PICTURE);
-        ret = hw->m_apiResult.status;
+        hw->waitAPIResult(QCAMERA_SM_EVT_TAKE_PICTURE, &apiResult);
+        ret = apiResult.status;
     }
 
     hw->unlockAPI();
@@ -658,10 +674,11 @@ int QCamera2HardwareInterface::cancel_picture(struct camera_device *device)
         return BAD_VALUE;
     }
     hw->lockAPI();
+    qcamera_api_result_t apiResult;
     ret = hw->processAPI(QCAMERA_SM_EVT_CANCEL_PICTURE, NULL);
     if (ret == NO_ERROR) {
-        hw->waitAPIResult(QCAMERA_SM_EVT_CANCEL_PICTURE);
-        ret = hw->m_apiResult.status;
+        hw->waitAPIResult(QCAMERA_SM_EVT_CANCEL_PICTURE, &apiResult);
+        ret = apiResult.status;
     }
     hw->unlockAPI();
 
@@ -692,10 +709,11 @@ int QCamera2HardwareInterface::set_parameters(struct camera_device *device,
         return BAD_VALUE;
     }
     hw->lockAPI();
+    qcamera_api_result_t apiResult;
     ret = hw->processAPI(QCAMERA_SM_EVT_SET_PARAMS, (void *)parms);
     if (ret == NO_ERROR) {
-        hw->waitAPIResult(QCAMERA_SM_EVT_SET_PARAMS);
-        ret = hw->m_apiResult.status;
+        hw->waitAPIResult(QCAMERA_SM_EVT_SET_PARAMS, &apiResult);
+        ret = apiResult.status;
     }
     hw->unlockAPI();
 
@@ -722,10 +740,11 @@ char* QCamera2HardwareInterface::get_parameters(struct camera_device *device)
         return NULL;
     }
     hw->lockAPI();
+    qcamera_api_result_t apiResult;
     int32_t rc = hw->processAPI(QCAMERA_SM_EVT_GET_PARAMS, NULL);
     if (rc == NO_ERROR) {
-        hw->waitAPIResult(QCAMERA_SM_EVT_GET_PARAMS);
-        ret = hw->m_apiResult.params;
+        hw->waitAPIResult(QCAMERA_SM_EVT_GET_PARAMS, &apiResult);
+        ret = apiResult.params;
     }
     hw->unlockAPI();
 
@@ -753,9 +772,10 @@ void QCamera2HardwareInterface::put_parameters(struct camera_device *device,
         return;
     }
     hw->lockAPI();
+    qcamera_api_result_t apiResult;
     int32_t ret = hw->processAPI(QCAMERA_SM_EVT_PUT_PARAMS, (void *)parm);
     if (ret == NO_ERROR) {
-        hw->waitAPIResult(QCAMERA_SM_EVT_PUT_PARAMS);
+        hw->waitAPIResult(QCAMERA_SM_EVT_PUT_PARAMS, &apiResult);
     }
     hw->unlockAPI();
 }
@@ -794,10 +814,11 @@ int QCamera2HardwareInterface::send_command(struct camera_device *device,
     payload.arg1 = arg1;
     payload.arg2 = arg2;
     hw->lockAPI();
+    qcamera_api_result_t apiResult;
     ret = hw->processAPI(QCAMERA_SM_EVT_SEND_COMMAND, (void *)&payload);
     if (ret == NO_ERROR) {
-        hw->waitAPIResult(QCAMERA_SM_EVT_SEND_COMMAND);
-        ret = hw->m_apiResult.status;
+        hw->waitAPIResult(QCAMERA_SM_EVT_SEND_COMMAND, &apiResult);
+        ret = apiResult.status;
     }
     hw->unlockAPI();
 
@@ -823,9 +844,10 @@ void QCamera2HardwareInterface::release(struct camera_device *device)
         return;
     }
     hw->lockAPI();
+    qcamera_api_result_t apiResult;
     int32_t ret = hw->processAPI(QCAMERA_SM_EVT_RELEASE, NULL);
     if (ret == NO_ERROR) {
-        hw->waitAPIResult(QCAMERA_SM_EVT_RELEASE);
+        hw->waitAPIResult(QCAMERA_SM_EVT_RELEASE, &apiResult);
     }
     hw->unlockAPI();
 }
@@ -853,10 +875,11 @@ int QCamera2HardwareInterface::dump(struct camera_device *device, int fd)
         return BAD_VALUE;
     }
     hw->lockAPI();
+    qcamera_api_result_t apiResult;
     ret = hw->processAPI(QCAMERA_SM_EVT_DUMP, (void *)fd);
     if (ret == NO_ERROR) {
-        hw->waitAPIResult(QCAMERA_SM_EVT_DUMP);
-        ret = hw->m_apiResult.status;
+        hw->waitAPIResult(QCAMERA_SM_EVT_DUMP, &apiResult);
+        ret = apiResult.status;
     }
     hw->unlockAPI();
 
@@ -921,10 +944,11 @@ int QCamera2HardwareInterface::register_face_image(struct camera_device *device,
     payload.img_ptr = img_ptr;
     payload.config = config;
     hw->lockAPI();
+    qcamera_api_result_t apiResult;
     ret = hw->processAPI(QCAMERA_SM_EVT_REG_FACE_IMAGE, (void *)&payload);
     if (ret == NO_ERROR) {
-        hw->waitAPIResult(QCAMERA_SM_EVT_REG_FACE_IMAGE);
-        ret = hw->m_apiResult.handle;
+        hw->waitAPIResult(QCAMERA_SM_EVT_REG_FACE_IMAGE, &apiResult);
+        ret = apiResult.handle;
     }
     hw->unlockAPI();
 
@@ -983,7 +1007,8 @@ QCamera2HardwareInterface::QCamera2HardwareInterface(int cameraId)
 
     pthread_mutex_init(&m_lock, NULL);
     pthread_cond_init(&m_cond, NULL);
-    memset(&m_apiResult, 0, sizeof(qcamera_api_result_t));
+
+    m_apiResultList = NULL;
 
     pthread_mutex_init(&m_evtLock, NULL);
     pthread_cond_init(&m_evtCond, NULL);
@@ -1230,6 +1255,17 @@ int QCamera2HardwareInterface::closeCamera()
     // stop and deinit postprocessor
     m_postprocessor.stop();
     m_postprocessor.deinit();
+
+    //free all pending api results here
+    if(m_apiResultList != NULL) {
+        api_result_list *apiResultList = m_apiResultList;
+        api_result_list *apiResultListNext;
+        while (apiResultList != NULL) {
+            apiResultListNext = apiResultList->next;
+            free(apiResultList);
+            apiResultList = apiResultListNext;
+        }
+    }
 
     m_thermalAdapter.deinit();
 
@@ -3674,15 +3710,36 @@ void QCamera2HardwareInterface::lockAPI()
  *
  * RETURN     : none
  *==========================================================================*/
-void QCamera2HardwareInterface::waitAPIResult(qcamera_sm_evt_enum_t api_evt)
+void QCamera2HardwareInterface::waitAPIResult(qcamera_sm_evt_enum_t api_evt,
+        qcamera_api_result_t *apiResult)
 {
     ALOGV("%s: wait for API result of evt (%d)", __func__, api_evt);
-    do {
+    int resultReceived = 0;
+    while  (!resultReceived) {
         pthread_cond_wait(&m_cond, &m_lock);
-    } while (m_apiResult.request_api != api_evt);
-
+        if (m_apiResultList != NULL) {
+            api_result_list *apiResultList = m_apiResultList;
+            api_result_list *apiResultListPrevious = m_apiResultList;
+            while (apiResultList != NULL) {
+                if (apiResultList->result.request_api == api_evt) {
+                    resultReceived = 1;
+                    *apiResult = apiResultList->result;
+                    apiResultListPrevious->next = apiResultList->next;
+                    if (apiResultList == m_apiResultList) {
+                        m_apiResultList = apiResultList->next;
+                    }
+                    free(apiResultList);
+                    break;
+                }
+                else {
+                    apiResultListPrevious = apiResultList;
+                    apiResultList = apiResultList->next;
+                }
+            }
+        }
+    }
     ALOGV("%s: return (%d) from API result wait for evt (%d)",
-          __func__, m_apiResult.status, api_evt);
+          __func__, apiResult->status, api_evt);
 }
 
 
@@ -3714,7 +3771,21 @@ void QCamera2HardwareInterface::signalAPIResult(qcamera_api_result_t *result)
 {
 
     pthread_mutex_lock(&m_lock);
-    m_apiResult = *result;
+    api_result_list *apiResult = (api_result_list *)malloc(sizeof(api_result_list));
+    if (apiResult == NULL) {
+        ALOGE("%s: ERROR: malloc for api result failed", __func__);
+        ALOGE("%s: ERROR: api thread will wait forever fot this lost result", __func__);
+        goto malloc_failed;
+    }
+    apiResult->result = *result;
+    apiResult->next = NULL;
+    if (m_apiResultList == NULL) m_apiResultList = apiResult;
+    else {
+        api_result_list *apiResultList = m_apiResultList;
+        while(apiResultList->next != NULL) apiResultList = apiResultList->next;
+        apiResultList->next = apiResult;
+    }
+malloc_failed:
     pthread_cond_broadcast(&m_cond);
     pthread_mutex_unlock(&m_lock);
 }
