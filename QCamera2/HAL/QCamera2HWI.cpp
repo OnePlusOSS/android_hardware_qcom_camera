@@ -2533,6 +2533,7 @@ int QCamera2HardwareInterface::takePicture()
     }
     ALOGE("%s: numSnapshot = %d",__func__, numSnapshots);
     mNumSnapshots = numSnapshots;
+    mOldCrop1xFound = false;
 
     getOrientation();
     ALOGD("%s: E", __func__);
