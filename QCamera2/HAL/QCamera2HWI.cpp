@@ -2568,6 +2568,11 @@ int QCamera2HardwareInterface::takePicture()
                     return rc;
                 }
             }
+            if ( mLongshotEnabled ) {
+                mCameraHandle->ops->start_zsl_snapshot(
+                        mCameraHandle->camera_handle,
+                        pZSLChannel->getMyHandle());
+            }
             rc = pZSLChannel->takePicture(numSnapshots);
             if (rc != NO_ERROR) {
                 ALOGE("%s: cannot take ZSL picture", __func__);
@@ -3217,6 +3222,7 @@ int QCamera2HardwareInterface::sendCommand(int32_t command,
                 }
             }
             //
+            mParameters.setLongshotEnable(mLongshotEnabled);
         } else {
             rc = NO_INIT;
         }
@@ -3225,9 +3231,16 @@ int QCamera2HardwareInterface::sendCommand(int32_t command,
         if ( mLongshotEnabled && m_stateMachine.isCaptureRunning() ) {
             cancelPicture();
             processEvt(QCAMERA_SM_EVT_SNAPSHOT_DONE, NULL);
+            QCameraChannel *pZSLChannel = m_channels[QCAMERA_CH_TYPE_ZSL];
+            if (isZSLMode() && (NULL != pZSLChannel)) {
+                mCameraHandle->ops->stop_zsl_snapshot(
+                        mCameraHandle->camera_handle,
+                        pZSLChannel->getMyHandle());
+            }
         }
         CDBG_HIGH("%s: Longshot Disabled", __func__);
         mLongshotEnabled = false;
+        mParameters.setLongshotEnable(mLongshotEnabled);
         break;
     case CAMERA_CMD_HISTOGRAM_ON:
     case CAMERA_CMD_HISTOGRAM_OFF:
