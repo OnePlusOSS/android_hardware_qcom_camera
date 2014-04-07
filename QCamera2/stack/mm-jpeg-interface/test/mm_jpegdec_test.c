@@ -154,6 +154,8 @@ int mm_jpegdec_test_alloc(buffer_t *p_buffer, int use_pmem)
       CDBG_ERROR("%s:%d] Error",__func__, __LINE__);
       return -1;
     }
+    p_buffer->p_pmem_fd = -1;
+    p_buffer->ion_fd = -1;
   }
   return ret;
 }
@@ -163,7 +165,7 @@ void mm_jpegdec_test_free(buffer_t *p_buffer)
   if (p_buffer->addr == NULL)
     return;
 
-  if (p_buffer->p_pmem_fd > 0)
+  if (p_buffer->p_pmem_fd > -1)
     buffer_deallocate(p_buffer);
   else
     free(p_buffer->addr);
