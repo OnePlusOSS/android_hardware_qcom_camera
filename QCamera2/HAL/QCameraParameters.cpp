@@ -7808,6 +7808,8 @@ int32_t QCameraParameters::setFaceDetection(bool enabled)
         return NO_ERROR;
     }
 
+    m_nFaceProcMask = faceProcMask;
+
     // set parm for face detection
     int requested_faces = getInt(KEY_QC_MAX_NUM_REQUESTED_FACES);
     cam_fd_set_parm_t fd_set_parm;
@@ -7838,7 +7840,6 @@ int32_t QCameraParameters::setFaceDetection(bool enabled)
         return rc;
     }
 
-    m_nFaceProcMask = faceProcMask;
     ALOGD("%s: FaceProcMask -> %d", __func__, m_nFaceProcMask);
 
     return rc;
