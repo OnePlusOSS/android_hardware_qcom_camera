@@ -1700,8 +1700,10 @@ int32_t QCameraPostProcessor::encodeData(qcamera_jpeg_data_t *jpeg_job_data,
 
     jpg_job.encode_job.cam_exif_params = m_parent->mExifParams;
 
+    jpg_job.encode_job.mobicat_mask = m_parent->mParameters.getMobicatMask();
+
     if (NULL != jpg_job.encode_job.p_metadata &&
-        m_parent->mParameters.isMobicatEnabled()) {
+        (jpg_job.encode_job.mobicat_mask > 0)) {
         memcpy(jpg_job.encode_job.p_metadata->
             chromatix_mobicat_af_data.private_mobicat_af_data,
             jpg_job.encode_job.cam_exif_params.af_mobicat_params,

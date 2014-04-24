@@ -240,6 +240,9 @@ typedef struct {
   /* 3a parameters */
   mm_jpeg_exif_params_t cam_exif_params;
 
+  /* flag to enable/disable mobicat */
+  uint8_t mobicat_mask;
+
 } mm_jpeg_encode_job_t;
 
 typedef struct {
