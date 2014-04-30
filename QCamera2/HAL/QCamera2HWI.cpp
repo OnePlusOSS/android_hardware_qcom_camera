@@ -2536,14 +2536,14 @@ int32_t QCamera2HardwareInterface::configureMTFBracketing(bool enable)
  *              NO_ERROR  -- success
  *              none-zero failure code
  *==========================================================================*/
-int32_t QCamera2HardwareInterface::configureFlashBracketing()
+int32_t QCamera2HardwareInterface::configureFlashBracketing(bool enable)
 {
     CDBG_HIGH("%s: E",__func__);
     int32_t rc = NO_ERROR;
 
     cam_flash_bracketing_t flashBracket;
     memset(&flashBracket, 0, sizeof(cam_flash_bracketing_t));
-    flashBracket.enable = 1;
+    flashBracket.enable = enable;
     //TODO: Hardcoded value.
     flashBracket.burst_count = 2;
     //Send cmd to backend to set Flash Bracketing for chroma flash.
@@ -3044,9 +3044,9 @@ int QCamera2HardwareInterface::cancelPicture()
     if (mParameters.isUbiFocusEnabled()) {
         configureAFBracketing(false);
     }
-    if(mParameters.isOptiZoomEnabled()) {
-        CDBG_HIGH("%s: Restoring previous zoom value!!",__func__);
-        mParameters.setAndCommitZoom(mZoomLevel);
+
+    if (mParameters.isChromaFlashEnabled()) {
+        configureFlashBracketing(false);
     }
     if (mParameters.isfssrEnabled()) {
         CDBG_HIGH("%s: Restoring previous zoom value!!",__func__);
@@ -3059,6 +3059,26 @@ int QCamera2HardwareInterface::cancelPicture()
         mParameters.resetMultiTouchFocusParam();
     }
     return NO_ERROR;
+}
+
+/*===========================================================================
+ * FUNCTION   : captureDone
+ *
+ * DESCRIPTION: Function called when the capture is completed before encoding
+ *
+ * PARAMETERS : none
+ *
+ * RETURN     : none
+ *==========================================================================*/
+void QCamera2HardwareInterface::captureDone()
+{
+    if (mParameters.isOptiZoomEnabled() &&
+            ++mOutputCount >= mParameters.getBurstCountForAdvancedCapture()) {
+        ALOGI("%s:%d] Restoring previous zoom value!!", __func__,
+                __LINE__);
+        mParameters.setAndCommitZoom(mZoomLevel);
+        mOutputCount = 0;
+    }
 }
 
 /*===========================================================================
