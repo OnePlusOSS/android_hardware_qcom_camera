@@ -3665,7 +3665,7 @@ int32_t QCameraParameters::setMobicat(const QCameraParameters& )
 {
     char value [PROPERTY_VALUE_MAX];
     property_get("persist.camera.mobicat", value, "0");
-    uint8_t enableMobi = atoi(value);
+    uint32_t enableMobi = atoi(value);
     int32_t ret = NO_ERROR;;
 
     if (enableMobi) {
@@ -3688,6 +3688,13 @@ int32_t QCameraParameters::setMobicat(const QCameraParameters& )
                                 sizeof(tune_cmd_t),
                                 &tune_cmd);
     }
+    if (NO_ERROR != ret) {
+        return ret;
+    }
+    ret = AddSetParmEntryToBatch(m_pParamBuf,
+                                CAM_INTF_PARM_AF_MOBICAT_CMD,
+                                sizeof(enableMobi),
+                                &enableMobi);
     m_bMobiMask = enableMobi;
     return ret;
 }
