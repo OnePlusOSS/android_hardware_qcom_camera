@@ -595,6 +595,11 @@ typedef enum {
     IS_TYPE_EIS_2_0
 } cam_is_type_t;
 
+typedef enum {
+    SECURE,
+    NON_SECURE
+} cam_stream_secure_t;
+
 #define CAM_REPROCESS_MASK_TYPE_WNR (1<<0)
 
 /* event from server */
