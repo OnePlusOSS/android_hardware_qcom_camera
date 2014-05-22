@@ -1708,6 +1708,7 @@ int32_t QCameraPostProcessor::encodeData(qcamera_jpeg_data_t *jpeg_job_data,
     m_parent->mExifParams.ui_flash_mode = (cam_flash_mode_t) m_parent->getFlash();
     m_parent->mExifParams.red_eye = (exif_redeye_t) m_parent->getRedeye();
     m_parent->mExifParams.flash_presence = (exif_flash_func_pre_t) m_parent->getFlashPresence();
+    m_parent->mExifParams.sensor_params.sens_type = m_parent->getSensorType();
 
     jpg_job.encode_job.cam_exif_params = m_parent->mExifParams;
 
