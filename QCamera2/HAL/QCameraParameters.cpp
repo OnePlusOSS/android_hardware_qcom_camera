@@ -114,8 +114,10 @@ const char QCameraParameters::KEY_QC_VIDEO_FLIP[] = "video-flip";
 const char QCameraParameters::KEY_QC_SNAPSHOT_PICTURE_FLIP[] = "snapshot-picture-flip";
 const char QCameraParameters::KEY_QC_SUPPORTED_FLIP_MODES[] = "flip-mode-values";
 const char QCameraParameters::KEY_QC_VIDEO_HDR[] = "video-hdr";
+const char QCameraParameters::KEY_QC_SENSOR_HDR[] = "sensor-hdr";
 const char QCameraParameters::KEY_QC_VT_ENABLE[] = "avtimer";
 const char QCameraParameters::KEY_QC_SUPPORTED_VIDEO_HDR_MODES[] = "video-hdr-values";
+const char QCameraParameters::KEY_QC_SUPPORTED_SENSOR_HDR_MODES[] = "sensor-hdr-values";
 const char QCameraParameters::KEY_QC_AUTO_HDR_ENABLE [] = "auto-hdr-enable";
 const char QCameraParameters::KEY_QC_SNAPSHOT_BURST_NUM[] = "snapshot-burst-num";
 const char QCameraParameters::KEY_QC_SNAPSHOT_FD_DATA[] = "snapshot-fd-data-enable";
@@ -665,7 +667,8 @@ QCameraParameters::QCameraParameters()
       m_bDisplayFrame(true),
       m_bAeBracketingEnabled(false),
       mFlashValue(CAM_FLASH_MODE_OFF),
-      mFlashDaemonValue(CAM_FLASH_MODE_OFF)
+      mFlashDaemonValue(CAM_FLASH_MODE_OFF),
+      m_bSensorHDREnabled(false)
 {
     char value[PROPERTY_VALUE_MAX];
     // TODO: may move to parameter instead of sysprop
@@ -744,7 +747,8 @@ QCameraParameters::QCameraParameters(const String8 &params)
     mHfrMode(CAM_HFR_MODE_OFF),
     m_bAeBracketingEnabled(false),
     mFlashValue(CAM_FLASH_MODE_OFF),
-    mFlashDaemonValue(CAM_FLASH_MODE_OFF)
+    mFlashDaemonValue(CAM_FLASH_MODE_OFF),
+    m_bSensorHDREnabled(false)
 {
     memset(&m_LiveSnapshotSize, 0, sizeof(m_LiveSnapshotSize));
     m_pTorch = NULL;
@@ -2940,6 +2944,8 @@ int32_t QCameraParameters::setSceneMode(const QCameraParameters& params)
     int rc = NO_ERROR;
     const char *str = params.get(KEY_SCENE_MODE);
     const char *prev_str = get(KEY_SCENE_MODE);
+    CDBG("%s: str - %s, prev_str - %s",__func__, str, prev_str);
+
     if (str != NULL) {
         if (prev_str == NULL ||
             strcmp(str, prev_str) != 0) {
@@ -2947,18 +2953,36 @@ int32_t QCameraParameters::setSceneMode(const QCameraParameters& params)
             if(strcmp(str, SCENE_MODE_AUTO) == 0) {
                 m_bSceneTransitionAuto = true;
             }
-
             if (strcmp(str, SCENE_MODE_HDR) == 0) {
-                if ((m_pCapability->qcom_supported_feature_mask & CAM_QCOM_FEATURE_HDR) == 0){
-                    CDBG_HIGH("%s: HDR is not supported",__func__);
+                // If HDR is set from client and the feature is
+                // not enabled in the backend, ignore it.
+                if (m_pCapability->qcom_supported_feature_mask &
+                     CAM_QCOM_FEATURE_SENSOR_HDR) {
+                    CDBG_HIGH("%s: Sensor HDR mode Enabled",__func__);
+                    m_bSensorHDREnabled = true;
+                    m_bHDREnabled = false;
+                } else if (m_pCapability->qcom_supported_feature_mask &
+                            CAM_QCOM_FEATURE_HDR) {
+                    CDBG_HIGH("%s: S/W HDR Enabled",__func__);
+                    m_bSensorHDREnabled = false;
+                    m_bHDREnabled = true;
+                } else {
+                    m_bSensorHDREnabled = false;
+                    m_bHDREnabled = false;
                     return NO_ERROR;
                 }
-                m_bHDREnabled = true;
             } else {
                 m_bHDREnabled = false;
+                if (m_bSensorHDREnabled) {
+                    m_bSensorHDREnabled = false;
+                    m_bNeedRestart = true;
+                    setSensorSnapshotHDR(VALUE_OFF);
+                }
             }
-
-            if ((m_bHDREnabled) ||
+            if (m_bSensorHDREnabled) {
+                setSensorSnapshotHDR(VALUE_ON);
+                m_bNeedRestart = true;
+            } else if ((m_bHDREnabled) ||
                 ((prev_str != NULL) && (strcmp(prev_str, SCENE_MODE_HDR) == 0))) {
                 CDBG_HIGH("%s: scene mode changed between HDR and non-HDR, need restart", __func__);
 
@@ -2980,7 +3004,6 @@ int32_t QCameraParameters::setSceneMode(const QCameraParameters& params)
                                        sizeof(m_bHDR1xFrameEnabled),
                                        &m_bHDR1xFrameEnabled);
             }
-
 
             rc = setSceneMode(str);
 
@@ -4405,6 +4428,14 @@ int32_t QCameraParameters::initDefaultParameters()
         set(KEY_QC_SUPPORTED_VIDEO_HDR_MODES, onOffValues);
         set(KEY_QC_VIDEO_HDR, VALUE_OFF);
     }
+
+    //Set HW Sensor Snapshot HDR
+    if ((m_pCapability->qcom_supported_feature_mask & CAM_QCOM_FEATURE_SENSOR_HDR)> 0) {
+        set(KEY_QC_SUPPORTED_SENSOR_HDR_MODES, onOffValues);
+        set(KEY_QC_SENSOR_HDR, VALUE_OFF);
+        m_bSensorHDREnabled = false;
+    }
+
     // Set VT TimeStamp
     set(KEY_QC_VT_ENABLE, VALUE_DISABLE);
     //Set Touch AF/AEC
@@ -5103,6 +5134,40 @@ int32_t QCameraParameters::setSceneDetect(const char *sceneDetect)
           (sceneDetect == NULL) ? "NULL" : sceneDetect);
     return BAD_VALUE;
 }
+
+/*===========================================================================
+ * FUNCTION   : setSensorSnapshotHDR
+ *
+ * DESCRIPTION: set snapshot HDR value
+ *
+ * PARAMETERS :
+ *   @snapshotHDR  : snapshot HDR value string
+ *
+ * RETURN     : int32_t type of status
+ *              NO_ERROR  -- success
+ *              none-zero failure code
+ *==========================================================================*/
+int32_t QCameraParameters::setSensorSnapshotHDR(const char *snapshotHDR)
+{
+    if (snapshotHDR != NULL) {
+        int32_t value = lookupAttr(ON_OFF_MODES_MAP,
+                                   sizeof(ON_OFF_MODES_MAP)/sizeof(QCameraMap),
+                                   snapshotHDR);
+        if (value != NAME_NOT_FOUND) {
+            CDBG("%s: Setting Sensor Snapshot HDR %s", __func__, snapshotHDR);
+            updateParamEntry(KEY_QC_SENSOR_HDR, snapshotHDR);
+            return AddSetParmEntryToBatch(m_pParamBuf,
+                                          CAM_INTF_PARM_SENSOR_HDR,
+                                          sizeof(value),
+                                          &value);
+        }
+    }
+    CDBG_HIGH("Invalid Snapshot HDR value: %s",
+          (snapshotHDR == NULL) ? "NULL" : snapshotHDR);
+    return BAD_VALUE;
+
+}
+
 
 /*===========================================================================
  * FUNCTION   : setVideoHDR
@@ -6109,6 +6174,11 @@ int32_t QCameraParameters::setSceneMode(const char *sceneModeStr)
         if (value != NAME_NOT_FOUND) {
             CDBG_HIGH("%s: Setting SceneMode %s", __func__, sceneModeStr);
             updateParamEntry(KEY_SCENE_MODE, sceneModeStr);
+            if (m_bSensorHDREnabled) {
+              // Incase of HW HDR mode, we do not update the same as Best shot mode.
+              CDBG("%s: H/W HDR mode enabled. Do not set Best Shot Mode", __func__);
+              return NO_ERROR;
+            }
             int32_t rc = AddSetParmEntryToBatch(m_pParamBuf,
                                                 CAM_INTF_PARM_BESTSHOT_MODE,
                                                 sizeof(value),
@@ -6687,7 +6757,7 @@ int32_t QCameraParameters::updateFlash(bool commitSettings)
     }
 
     if (isHDREnabled() || m_bAeBracketingEnabled || m_bAFBracketingOn ||
-          m_bOptiZoomOn) {
+          m_bOptiZoomOn || m_bSensorHDREnabled) {
         value = CAM_FLASH_MODE_OFF;
     } else if (m_bChromaFlashOn) {
         value = CAM_FLASH_MODE_ON;
