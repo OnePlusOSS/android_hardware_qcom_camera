@@ -541,10 +541,11 @@ int process_meta_data(cam_metadata_info_t *p_meta, QOMX_EXIF_INFO *exif_info,
   cam_auto_focus_data_t *p_focus_data = p_meta->is_focus_valid ?
     &p_meta->focus_data : &p_cam_exif_params->af_params;
 
-
-  rc = process_3a_data(p_ae_params, p_awb_params, p_focus_data, exif_info);
-  if (rc) {
-    ALOGE("%s %d: Failed to extract 3a params", __func__, __LINE__);
+  if(p_cam_exif_params->sensor_params.sens_type != CAM_SENSOR_YUV) {
+      rc = process_3a_data(p_ae_params, p_awb_params, p_focus_data, exif_info);
+      if (rc) {
+        ALOGE("%s %d: Failed to extract 3a params", __func__, __LINE__);
+      }
   }
 
   cam_sensor_params_t *p_sensor_params = p_meta->is_sensor_params_valid ?

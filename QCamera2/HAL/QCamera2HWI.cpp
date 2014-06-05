@@ -1031,6 +1031,7 @@ QCamera2HardwareInterface::QCamera2HardwareInterface(int cameraId)
     pthread_cond_init(&m_int_cond, NULL);
 
     memset(m_channels, 0, sizeof(m_channels));
+    memset(&mExifParams, 0, sizeof(mm_jpeg_exif_params_t));
 
 #ifdef HAS_MULTIMEDIA_HINTS
     if (hw_get_module(POWER_HARDWARE_MODULE_ID, (const hw_module_t **)&m_pPowerModule)) {
@@ -6575,6 +6576,22 @@ void QCamera2HardwareInterface::getLogLevel()
 
     ALOGI("%s gCamHalLogLevel=%d",__func__, gCamHalLogLevel);
     return;
+}
+
+/*===========================================================================
+ * FUNCTION   : getSensorType
+ *
+ * DESCRIPTION: Returns the type of sensor being used whether YUV or Bayer
+ *
+ * PARAMETERS :
+ *   None
+ *
+ * RETURN     : Type of sensor - bayer or YUV
+ *
+ *==========================================================================*/
+cam_sensor_t QCamera2HardwareInterface::getSensorType()
+{
+    return gCamCapability[mCameraId]->sensor_type.sens_type;
 }
 
 }; // namespace qcamera
