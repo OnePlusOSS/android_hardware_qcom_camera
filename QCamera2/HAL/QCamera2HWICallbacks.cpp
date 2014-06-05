@@ -408,7 +408,7 @@ void QCamera2HardwareInterface::preview_stream_cb_routine(mm_camera_super_buf_t 
                                                           QCameraStream * stream,
                                                           void *userdata)
 {
-    CDBG_HIGH("[KPI Perf] %s : BEGIN", __func__);
+    CDBG("[KPI Perf] %s : BEGIN", __func__);
     int err = NO_ERROR;
     QCamera2HardwareInterface *pme = (QCamera2HardwareInterface *)userdata;
     QCameraGrallocMemory *memory = (QCameraGrallocMemory *)super_frame->bufs[0]->mem_info;
@@ -520,7 +520,7 @@ void QCamera2HardwareInterface::preview_stream_cb_routine(mm_camera_super_buf_t 
     }
 
     free(super_frame);
-    CDBG_HIGH("[KPI Perf] %s : END", __func__);
+    CDBG("[KPI Perf] %s : END", __func__);
     return;
 }
 
@@ -687,7 +687,7 @@ void QCamera2HardwareInterface::video_stream_cb_routine(mm_camera_super_buf_t *s
                                                         QCameraStream *stream,
                                                         void *userdata)
 {
-    CDBG_HIGH("[KPI Perf] %s : BEGIN", __func__);
+    CDBG("[KPI Perf] %s : BEGIN", __func__);
     QCamera2HardwareInterface *pme = (QCamera2HardwareInterface *)userdata;
     if (pme == NULL ||
         pme->mCameraHandle == NULL ||
@@ -741,7 +741,7 @@ void QCamera2HardwareInterface::video_stream_cb_routine(mm_camera_super_buf_t *s
         }
     }
     free(super_frame);
-    CDBG_HIGH("[KPI Perf] %s : END", __func__);
+    CDBG("[KPI Perf] %s : END", __func__);
 }
 
 /*===========================================================================
@@ -989,7 +989,7 @@ void QCamera2HardwareInterface::metadata_stream_cb_routine(mm_camera_super_buf_t
                                                            QCameraStream * stream,
                                                            void * userdata)
 {
-    CDBG_HIGH("[KPI Perf] %s : BEGIN", __func__);
+    CDBG("[KPI Perf] %s : BEGIN", __func__);
     QCamera2HardwareInterface *pme = (QCamera2HardwareInterface *)userdata;
     if (pme == NULL ||
         pme->mCameraHandle == NULL ||
@@ -1126,12 +1126,13 @@ void QCamera2HardwareInterface::metadata_stream_cb_routine(mm_camera_super_buf_t
             ALOGE("%s: No memory for prep_snapshot qcamera_sm_internal_evt_payload_t", __func__);
         }
     }
-
-    CDBG_HIGH("%s: hdr_scene_data: %d %d %f\n",
-          __func__,
-          pMetaData->is_hdr_scene_data_valid,
-          pMetaData->hdr_scene_data.is_hdr_scene,
-          pMetaData->hdr_scene_data.hdr_confidence);
+    if (pMetaData->is_hdr_scene_data_valid) {
+        CDBG("%s: hdr_scene_data: %d %d %f\n",
+                   __func__,
+                   pMetaData->is_hdr_scene_data_valid,
+                   pMetaData->hdr_scene_data.is_hdr_scene,
+                   pMetaData->hdr_scene_data.hdr_confidence);
+    }
     //Handle this HDR meta data only if capture is not in process
     if (pMetaData->is_hdr_scene_data_valid && !pme->m_stateMachine.isCaptureRunning()) {
         int32_t rc = pme->processHDRData(pMetaData->hdr_scene_data);
@@ -1153,7 +1154,7 @@ void QCamera2HardwareInterface::metadata_stream_cb_routine(mm_camera_super_buf_t
     }
 
     if (pMetaData->is_awb_params_valid) {
-        CDBG_HIGH("%s, metadata for awb params.", __func__);
+        CDBG("%s, metadata for awb params.", __func__);
         qcamera_sm_internal_evt_payload_t *payload =
             (qcamera_sm_internal_evt_payload_t *)malloc(sizeof(qcamera_sm_internal_evt_payload_t));
         if (NULL != payload) {
@@ -1222,7 +1223,7 @@ void QCamera2HardwareInterface::metadata_stream_cb_routine(mm_camera_super_buf_t
     stream->bufDone(frame->buf_idx);
     free(super_frame);
 
-    CDBG_HIGH("[KPI Perf] %s : END", __func__);
+    CDBG("[KPI Perf] %s : END", __func__);
 }
 
 /*===========================================================================
