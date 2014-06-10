@@ -250,7 +250,8 @@ public:
 
     // video rotation
     static const char KEY_QC_VIDEO_ROTATION[];
-
+    // Auto HDR supported
+    static const char KEY_QC_AUTO_HDR_SUPPORTED[];
     //Redeye Reduction
     static const char KEY_QC_REDEYE_REDUCTION[];
     static const char KEY_QC_SUPPORTED_REDEYE_REDUCTION[];
