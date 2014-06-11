@@ -1226,7 +1226,7 @@ int QCamera2HardwareInterface::openCamera()
         gCamCapability[mCameraId]->padding_info.plane_padding = padding_info.plane_padding;
     }
 
-    mParameters.init(gCamCapability[mCameraId], mCameraHandle, this, this);
+    mParameters.init(gCamCapability[mCameraId], mCameraHandle, this, this, this);
 
     mCameraOpened = true;
 

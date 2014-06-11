@@ -2126,8 +2126,8 @@ int32_t mm_jpeg_create_session(mm_jpeg_obj *my_obj,
     work_bufs_need = MM_JPEG_CONCURRENT_SESSIONS_COUNT;
   }
   CDBG_ERROR("%s:%d] >>>> Work bufs need %d", __func__, __LINE__, work_bufs_need);
-  work_buf_size = CEILING64(my_obj->max_pic_w) *
-      CEILING64(my_obj->max_pic_h) * 1.5;
+  work_buf_size = CEILING64(p_params->main_dim.dst_dim.width) *
+      CEILING64(p_params->main_dim.dst_dim.height) * 1.5;
   for (i = my_obj->work_buf_cnt; i < work_bufs_need; i++) {
      my_obj->ionBuffer[i].size = CEILING32(work_buf_size);
      CDBG_HIGH("Max picture size %d x %d, WorkBufSize = %ld",

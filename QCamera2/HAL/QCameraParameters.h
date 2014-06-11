@@ -36,6 +36,8 @@ using namespace android;
 
 namespace qcamera {
 
+class QCamera2HardwareInterface;
+
 //EXIF globals
 static const char ExifAsciiPrefix[] = { 0x41, 0x53, 0x43, 0x49, 0x49, 0x0, 0x0, 0x0 };          // "ASCII\0\0\0"
 static const char ExifUndefinedPrefix[] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };   // "\0\0\0\0\0\0\0\0"
@@ -488,6 +490,7 @@ public:
 
     int32_t init(cam_capability_t *,
                  mm_camera_vtbl_t *,
+                 QCamera2HardwareInterface *,
                  QCameraAdjustFPS *,
                  QCameraTorchInterface *);
     void deinit();
@@ -791,6 +794,7 @@ private:
     static const QCameraMap OPTI_ZOOM_MODES_MAP[];
     static const QCameraMap CDS_MODES_MAP[];
 
+    QCamera2HardwareInterface *m_parent;
     cam_capability_t *m_pCapability;
     mm_camera_vtbl_t *m_pCamOpsTbl;
     QCameraHeapMemory *m_pParamHeap;
