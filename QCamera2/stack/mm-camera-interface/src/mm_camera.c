@@ -306,6 +306,7 @@ int32_t mm_camera_open(mm_camera_obj_t *my_obj)
     pthread_cond_init(&my_obj->evt_cond, NULL);
 
     CDBG("%s : Launch evt Thread in Cam Open",__func__);
+    snprintf(my_obj->evt_thread.threadName, THREAD_NAME_SIZE, "CAM_Dispatch");
     mm_camera_cmd_thread_launch(&my_obj->evt_thread,
                                 mm_camera_dispatch_app_event,
                                 (void *)my_obj);
@@ -313,6 +314,7 @@ int32_t mm_camera_open(mm_camera_obj_t *my_obj)
     /* launch event poll thread
      * we will add evt fd into event poll thread upon user first register for evt */
     CDBG("%s : Launch evt Poll Thread in Cam Open", __func__);
+    snprintf(my_obj->evt_thread.threadName, THREAD_NAME_SIZE, "CAM_Poll");
     mm_camera_poll_thread_launch(&my_obj->evt_poll_thread,
                                  MM_CAMERA_POLL_TYPE_EVT);
     mm_camera_evt_sub(my_obj, TRUE);
