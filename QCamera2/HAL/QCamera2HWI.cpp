@@ -3771,7 +3771,7 @@ int32_t QCamera2HardwareInterface::processHDRData(cam_asd_hdr_scene_data_t hdr_s
         }
     }
 
-    CDBG_HIGH("%s : hdr_scene_data: processHDRData: %d %f",
+    CDBG("%s : hdr_scene_data: processHDRData: %d %f",
           __func__,
           hdr_scene.is_hdr_scene,
           hdr_scene.hdr_confidence);
@@ -3793,7 +3793,7 @@ int32_t QCamera2HardwareInterface::processHDRData(cam_asd_hdr_scene_data_t hdr_s
  *==========================================================================*/
 int32_t QCamera2HardwareInterface::transAwbMetaToParams(cam_awb_params_t &awb_params)
 {
-    CDBG_HIGH("%s, cct value: %d", __func__, awb_params.cct_value);
+    CDBG("%s, cct value: %d", __func__, awb_params.cct_value);
 
     return mParameters.updateCCTValue(awb_params.cct_value);
 }
