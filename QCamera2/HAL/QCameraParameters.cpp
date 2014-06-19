@@ -2465,6 +2465,33 @@ int32_t QCameraParameters::setISPDebugMask()
 }
 
 /*===========================================================================
+ * FUNCTION   : setSensorDebugMask
+ *
+ * DESCRIPTION: get the value from persist file in Sensor module that will
+ *              control logging in the module
+ *
+ * PARAMETERS : none
+ *
+ * RETURN     : int32_t type of status
+ *              NO_ERROR  -- success
+ *              none-zero failure code
+ *==========================================================================*/
+int32_t QCameraParameters::setSensorDebugMask()
+{
+    uint32_t mask = 0;
+    char value[PROPERTY_VALUE_MAX];
+
+    property_get("persist.camera.sensor.debug.mask", value, "0");
+    mask = (uint32_t)atoi(value);
+    ALOGV("%s: ctrl mask :%d", __func__, mask);
+
+    return AddSetParmEntryToBatch(m_pParamBuf,
+                                  CAM_INTF_PARM_SENSOR_DEBUG_MASK,
+                                  sizeof(mask),
+                                  &mask);
+}
+
+/*===========================================================================
  * FUNCTION   : setSceneDetect
  *
  * DESCRIPTION: set scenen detect value from user setting
@@ -4182,7 +4209,7 @@ int32_t QCameraParameters::updateParameters(QCameraParameters& params,
     if ((rc = setTruePortrait(params)))                 final_rc = rc;
 
     if ((rc = updateFlash(false)))                      final_rc = rc;
-
+    if ((rc = setSensorDebugMask()))                    final_rc = rc;
 UPDATE_PARAM_DONE:
     needRestart = m_bNeedRestart;
     return final_rc;
