@@ -1538,7 +1538,6 @@ uint8_t QCamera2HardwareInterface::getBufNumRequired(cam_stream_type_t stream_ty
                 bufferCnt = minCaptureBuffers +
                             mParameters.getNumOfExtraHDRInBufsIfNeeded() -
                             mParameters.getNumOfExtraHDROutBufsIfNeeded() +
-                            minPPBufs +
                             mParameters.getNumOfExtraBuffersForImageProc();
 
                 if (bufferCnt > maxStreamBuf) {
@@ -1554,7 +1553,6 @@ uint8_t QCamera2HardwareInterface::getBufNumRequired(cam_stream_type_t stream_ty
             bufferCnt = minCaptureBuffers +
                         mParameters.getNumOfExtraHDRInBufsIfNeeded() -
                         mParameters.getNumOfExtraHDROutBufsIfNeeded() +
-                        minPPBufs +
                         mParameters.getNumOfExtraBuffersForImageProc();
 
             if (bufferCnt > maxStreamBuf) {
