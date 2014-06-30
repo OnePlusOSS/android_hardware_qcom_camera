@@ -2027,6 +2027,7 @@ int QCamera2HardwareInterface::stopPreview()
     stopChannel(QCAMERA_CH_TYPE_ZSL);
     stopChannel(QCAMERA_CH_TYPE_PREVIEW);
 
+    m_cbNotifier.flushPreviewNotifications();
     // delete all channels from preparePreview
     unpreparePreview();
     CDBG_HIGH("%s: X", __func__);
