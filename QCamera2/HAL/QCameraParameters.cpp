@@ -4475,6 +4475,7 @@ int32_t QCameraParameters::initDefaultParameters()
  *==========================================================================*/
 int32_t QCameraParameters::init(cam_capability_t *capabilities,
                                 mm_camera_vtbl_t *mmOps,
+                                QCamera2HardwareInterface *cam_ctrl,
                                 QCameraAdjustFPS *adjustFPS,
                                 QCameraTorchInterface *torch)
 {
@@ -4484,6 +4485,7 @@ int32_t QCameraParameters::init(cam_capability_t *capabilities,
     m_pCamOpsTbl = mmOps;
     m_AdjustFPS = adjustFPS;
     m_pTorch = torch;
+    m_parent = cam_ctrl;
 
     //Allocate Set Param Buffer
     m_pParamHeap = new QCameraHeapMemory(QCAMERA_ION_USE_CACHE);
@@ -7385,12 +7387,26 @@ int QCameraParameters::getMinPPBufs()
  *==========================================================================*/
 int QCameraParameters::setRecordingHintValue(int32_t value)
 {
+    int32_t rc = NO_ERROR;
     CDBG("%s: VideoHint = %d", __func__, value);
     bool newValue = (value > 0)? true : false;
 
     if ( m_bRecordingHint != newValue ) {
         m_bNeedRestart = true;
         m_bRecordingHint_new = newValue;
+        uint32_t jpegClientHandle = m_parent->m_postprocessor.mJpegClientHandle;
+        CDBG_HIGH("%s: m_bRecordingHint_new=%d",__func__, m_bRecordingHint_new);
+        if (m_bRecordingHint_new == true)
+            // Deallocates the existing JPEG work buffer
+            rc = m_parent->m_postprocessor.mJpegHandle.realloc_work_buffer(jpegClientHandle,0);
+        else
+            // Allocates the JPEG work buffer
+            rc = m_parent->m_postprocessor.mJpegHandle.realloc_work_buffer(jpegClientHandle,1);
+
+        if (rc != NO_ERROR) {
+            ALOGE("%s: error freeing/allocating work buffer", __func__);
+            return rc;
+        }
     } else {
         m_bRecordingHint_new = m_bRecordingHint;
     }

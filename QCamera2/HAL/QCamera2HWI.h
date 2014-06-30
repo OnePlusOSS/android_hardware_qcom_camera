@@ -287,6 +287,7 @@ public:
     friend class QCameraStateMachine;
     friend class QCameraPostProcessor;
     friend class QCameraCbNotifier;
+    friend class QCameraParameters;
 
 private:
     int setPreviewWindow(struct preview_stream_ops *window);

@@ -63,7 +63,6 @@ QCameraPostProcessor::QCameraPostProcessor(QCamera2HardwareInterface *cam_ctrl)
     : m_parent(cam_ctrl),
       mJpegCB(NULL),
       mJpegUserData(NULL),
-      mJpegClientHandle(0),
       mJpegSessionId(0),
       m_pJpegExifObj(NULL),
       m_bThumbnailNeeded(TRUE),
@@ -80,7 +79,8 @@ QCameraPostProcessor::QCameraPostProcessor(QCamera2HardwareInterface *cam_ctrl)
       mJpegMemOpt(true),
       mNewJpegSessionNeeded(true),
       mMultipleStages(false),
-      m_JpegOutputMemCount(0)
+      m_JpegOutputMemCount(0),
+      mJpegClientHandle(0)
 {
     memset(&mJpegHandle, 0, sizeof(mJpegHandle));
     memset(&m_pJpegOutputMem, 0, sizeof(m_pJpegOutputMem));
