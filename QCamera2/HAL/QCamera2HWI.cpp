@@ -6599,7 +6599,7 @@ bool QCamera2HardwareInterface::isRegularCapture()
     if (numOfSnapshotsExpected() == 1 &&
         !isLongshotEnabled() &&
         !mParameters.getRecordingHintValue() &&
-        !isZSLMode()) {
+        !isZSLMode() && !(mParameters.isHDREnabled())) {
             ret = true;
     }
     return ret;
