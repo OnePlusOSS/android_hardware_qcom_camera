@@ -5854,7 +5854,7 @@ int32_t  QCameraParameters::setWBManualCCT(const char *cctStr)
             m_curCCT = cctVal;
             updateParamEntry(KEY_QC_WB_MANUAL_CCT, cctStr);
             return AddSetParmEntryToBatch(m_pParamBuf,
-                                          CAM_INTF_PARM_WB_CCT,
+                                          CAM_INTF_PARM_WHITE_BALANCE,
                                           sizeof(cctVal),
                                           &cctVal);
         }
