@@ -4831,6 +4831,15 @@ QCameraReprocessChannel *QCamera2HardwareInterface::addReprocChannel(
         pp_config.feature_mask &= ~CAM_QCOM_FEATURE_OPTIZOOM;
     }
 
+    if (mParameters.isTruePortraitEnabled()) {
+        pp_config.feature_mask |= CAM_QCOM_FEATURE_TRUEPORTRAIT;
+        pp_config.tp_param.enable = mParameters.isTruePortraitEnabled();
+        pp_config.tp_param.meta_max_size = mParameters.TpMaxMetaSize();
+    } else {
+        pp_config.feature_mask &= ~CAM_QCOM_FEATURE_TRUEPORTRAIT;
+        pp_config.tp_param.enable = 0;
+    }
+
     //WNR and HDR happen inline. No extra buffers needed.
     uint32_t temp_feature_mask = pp_config.feature_mask;
     temp_feature_mask &= ~CAM_QCOM_FEATURE_DENOISE2D;

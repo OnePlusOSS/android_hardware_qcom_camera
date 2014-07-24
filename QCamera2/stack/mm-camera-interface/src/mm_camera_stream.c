@@ -79,7 +79,7 @@ int32_t mm_stream_calc_offset_post_view(cam_format_t fmt,
                                       cam_dimension_t *dim,
                                       cam_stream_buf_plane_info_t *buf_planes);
 
-int32_t mm_stream_calc_offset_snapshot(cam_format_t fmt,
+int32_t mm_stream_calc_offset_snapshot(cam_stream_info_t *stream_info,
                                        cam_dimension_t *dim,
                                        cam_padding_info_t *padding,
                                        cam_stream_buf_plane_info_t *buf_planes);
@@ -2169,7 +2169,7 @@ int32_t mm_stream_calc_offset_post_view(cam_format_t fmt,
  *              padding information
  *
  * PARAMETERS :
- *   @fmt     : image format
+ *   @stream_info : stream info
  *   @dim     : image dimension
  *   @padding : padding information
  *   @buf_planes : [out] buffer plane information
@@ -2178,11 +2178,12 @@ int32_t mm_stream_calc_offset_post_view(cam_format_t fmt,
  *              0  -- success
  *              -1 -- failure
  *==========================================================================*/
-int32_t mm_stream_calc_offset_snapshot(cam_format_t fmt,
+int32_t mm_stream_calc_offset_snapshot(cam_stream_info_t *stream_info,
                                        cam_dimension_t *dim,
                                        cam_padding_info_t *padding,
                                        cam_stream_buf_plane_info_t *buf_planes)
 {
+    cam_format_t fmt = stream_info->fmt;
     int32_t rc = 0;
     uint8_t isAFamily = mm_camera_util_chip_is_a_family();
     int offset_x = 0, offset_y = 0;
@@ -2237,9 +2238,21 @@ int32_t mm_stream_calc_offset_snapshot(cam_format_t fmt,
         buf_planes->plane_info.mp[1].height = dim->height / 2;
 
         buf_planes->plane_info.frame_len =
-            PAD_TO_SIZE(buf_planes->plane_info.mp[0].len +
-                        buf_planes->plane_info.mp[1].len,
-                        CAM_PAD_TO_4K);
+                PAD_TO_SIZE(buf_planes->plane_info.mp[0].len +
+                buf_planes->plane_info.mp[1].len,
+                CAM_PAD_TO_4K);
+
+        if (stream_info->reprocess_config.pp_feature_config.feature_mask &
+                CAM_QCOM_FEATURE_TRUEPORTRAIT) {
+            /* allocate extra mem for TP to get meta from backend */
+            buf_planes->plane_info.frame_len =
+                    PAD_TO_SIZE(buf_planes->plane_info.mp[0].len +
+                    buf_planes->plane_info.mp[1].len +
+                    stream_info->reprocess_config.pp_feature_config.tp_param.meta_max_size,
+                    CAM_PAD_TO_4K);
+            CDBG_HIGH("%s: Allocating extra %d memory for TruePortrait", __func__,
+                    stream_info->reprocess_config.pp_feature_config.tp_param.meta_max_size);
+        }
         break;
     case CAM_FORMAT_YUV_420_YV12:
         /* 3 planes: Y + Cr + Cb */
@@ -2714,7 +2727,7 @@ int32_t mm_stream_calc_offset_postproc(cam_stream_info_t *stream_info,
                                            plns);
         break;
     case CAM_STREAM_TYPE_SNAPSHOT:
-        rc = mm_stream_calc_offset_snapshot(stream_info->fmt,
+        rc = mm_stream_calc_offset_snapshot(stream_info,
                                             &stream_info->dim,
                                             padding,
                                             plns);
@@ -2782,7 +2795,7 @@ int32_t mm_stream_calc_offset(mm_stream_t *my_obj)
                                          &my_obj->stream_info->buf_planes);
       break;
     case CAM_STREAM_TYPE_SNAPSHOT:
-        rc = mm_stream_calc_offset_snapshot(my_obj->stream_info->fmt,
+        rc = mm_stream_calc_offset_snapshot(my_obj->stream_info,
                                             &dim,
                                             &my_obj->padding_info,
                                             &my_obj->stream_info->buf_planes);

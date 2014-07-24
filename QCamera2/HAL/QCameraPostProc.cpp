@@ -1632,6 +1632,37 @@ int32_t QCameraPostProcessor::encodeData(qcamera_jpeg_data_t *jpeg_job_data,
            }
            return NO_ERROR;
         }
+    } else if (m_parent->mParameters.isTruePortraitEnabled()) {
+        if (mem && mem->data) {
+            cam_frame_len_offset_t offset;
+            memset(&offset, 0, sizeof(cam_frame_len_offset_t));
+            main_stream->getFrameOffset(offset);
+            uint32_t meta_offset = (uint32_t)(offset.mp[0].len +
+                    offset.mp[1].len);
+
+            uint8_t *tp_meta = (uint8_t *)mem->data + meta_offset;
+            uint32_t tp_bodymask_height, tp_meta_size;
+            float aspect_ratio;
+
+            if (src_dim.width < src_dim.height) {
+                aspect_ratio = (float)src_dim.width/src_dim.height;
+            } else {
+                aspect_ratio = (float)src_dim.height/src_dim.width;
+            }
+
+            tp_bodymask_height = m_parent->mParameters.TPBodyMaskWidth() * aspect_ratio;
+            tp_meta_size = m_parent->mParameters.TpHeaderSize() +
+                    (m_parent->mParameters.TPBodyMaskWidth() * tp_bodymask_height);
+
+            CDBG_HIGH("%s:%d] %d x %d, %f, %d, %d", __func__, __LINE__,
+                    m_parent->mParameters.TPBodyMaskWidth(), tp_bodymask_height,
+                    aspect_ratio, meta_offset, tp_meta_size);
+
+            CAM_DUMP_TO_FILE("/data/local/tp", "bm",
+                    -1, "y",
+                    tp_meta,
+                    tp_meta_size);
+        }
     }
 
     cam_dimension_t dst_dim;
