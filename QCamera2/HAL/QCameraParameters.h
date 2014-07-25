@@ -277,6 +277,10 @@ public:
     static const char KEY_QC_TRUE_PORTRAIT[];
     static const char KEY_QC_SUPPORTED_TRUE_PORTRAIT_MODES[];
 
+    //FSSR
+    static const char KEY_QC_FSSR[];
+    static const char KEY_QC_SUPPORTED_FSSR_MODES[];
+
     //See more
     static const char KEY_QC_SEE_MORE[];
     static const char KEY_QC_SUPPORTED_SEE_MORE_MODES[];
@@ -450,6 +454,10 @@ public:
     // Values for Opti Zoom settings.
     static const char OPTI_ZOOM_OFF[];
     static const char OPTI_ZOOM_ON[];
+
+    // Values for FSSR settings.
+    static const char FSSR_OFF[];
+    static const char FSSR_ON[];
 
     // Values for See More settings.
     static const char SEE_MORE_OFF[];
@@ -630,6 +638,7 @@ public:
     inline uint32_t TPBodyMaskWidth() {
         return m_pCapability->true_portrait_settings_need.body_mask_width;};
     bool isOptiZoomEnabled();
+    bool isfssrEnabled() {return m_bFssrOn;};
     bool isDifferentFlipZSL();
     int32_t commitAFBracket(cam_af_bracketing_t afBracket);
     int32_t commitFlashBracket(cam_flash_bracketing_t flashBracket);
@@ -642,12 +651,12 @@ public:
     inline uint32_t UfOutputCount() {
         return m_pCapability->ubifocus_af_bracketing_need.output_count;};
     inline bool generateThumbFromMain() {return isUbiFocusEnabled() ||
-        isChromaFlashEnabled() || isOptiZoomEnabled() || isDifferentFlipZSL(); }
+        isChromaFlashEnabled() || isOptiZoomEnabled() || isDifferentFlipZSL() || isfssrEnabled(); }
     int32_t  updateCurrentFocusPosition(int32_t pos);
     bool isDisplayFrameNeeded() { return m_bDisplayFrame; };
     int32_t setDisplayFrame(bool enabled) {m_bDisplayFrame=enabled; return 0;};
     bool isAdvCamFeaturesEnabled() {return isUbiFocusEnabled() ||
-        isChromaFlashEnabled() || isOptiZoomEnabled() || isHDREnabled();}
+        isChromaFlashEnabled() || isOptiZoomEnabled() || isHDREnabled() || isfssrEnabled();}
     int32_t setIntEvent(cam_int_evt_params_t params);
 
 private:
@@ -700,6 +709,7 @@ private:
     int32_t setChromaFlash(const QCameraParameters& );
     int32_t setOptiZoom(const QCameraParameters& );
     int32_t setTruePortrait(const QCameraParameters& );
+    int32_t setFssr(const QCameraParameters& );
     int32_t setSeeMore(const QCameraParameters& );
     int32_t setRedeyeReduction(const QCameraParameters& );
     int32_t setGpsLocation(const QCameraParameters& );
@@ -761,6 +771,7 @@ private:
     int32_t setChromaFlash(const char *chromaFlashStr);
     int32_t setOptiZoom(const char *optiZoomStr);
     int32_t setTruePortrait(const char *truePortraitStr);
+    int32_t setFssr(const char *fssrStr);
     int32_t setSeeMore(const char *optiZoomStr);
     int32_t setRedeyeReduction(const char *redeyeStr);
     int32_t setWaveletDenoise(const char *wnrStr);
@@ -833,6 +844,7 @@ private:
     static const QCameraMap CHROMA_FLASH_MODES_MAP[];
     static const QCameraMap OPTI_ZOOM_MODES_MAP[];
     static const QCameraMap TRUE_PORTRAIT_MODES_MAP[];
+    static const QCameraMap FSSR_MODES_MAP[];
     static const QCameraMap CDS_MODES_MAP[];
     static const QCameraMap SEE_MORE_MODES_MAP[];
 
@@ -889,6 +901,7 @@ private:
     bool m_bAFBracketingOn;
     bool m_bChromaFlashOn;
     bool m_bOptiZoomOn;
+    bool m_bFssrOn;
     bool m_bSeeMoreOn;
     bool m_bUbiRefocus;
     cam_fps_range_t m_hfrFpsRange;

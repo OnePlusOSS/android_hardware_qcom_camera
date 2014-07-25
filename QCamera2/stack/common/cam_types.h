@@ -1439,6 +1439,7 @@ typedef struct {
 #define CAM_QCOM_FEATURE_DIS20          (1<<16)
 #define CAM_QCOM_FEATURE_SENSOR_HDR     (1<<17)
 #define CAM_QCOM_FEATURE_TRUEPORTRAIT   (1<<18)
+#define CAM_QCOM_FEATURE_FSSR           (1<<20)
 
 // Debug mask
 #define HAL_DEBUG_MASK_HAL                 (1<<0)
@@ -1496,6 +1497,11 @@ typedef struct {
     uint8_t enable;
     uint8_t burst_count;
 } cam_flash_bracketing_t;
+
+typedef struct {
+    uint8_t enable;
+    uint8_t burst_count;
+} cam_fssr_t;
 
 typedef struct {
     uint8_t enable;

@@ -900,6 +900,14 @@ int32_t QCameraReprocessChannel::addReprocStreamsFromSource(QCameraAllocator& al
             streamInfo->stream_type = CAM_STREAM_TYPE_OFFLINE_PROC;
             rc = pStream->getFormat(streamInfo->fmt);
             rc = pStream->getFrameDimension(streamInfo->dim);
+
+            //FSSR generates 4x output
+            uint32_t feature_mask = config.feature_mask;
+            if (feature_mask & CAM_QCOM_FEATURE_FSSR) {
+                (streamInfo->dim).width *= 2;
+                (streamInfo->dim).height *= 2;
+            }
+
             if ( contStream ) {
                 streamInfo->streaming_mode = CAM_STREAMING_MODE_CONTINUOUS;
                 streamInfo->num_of_burst = 0;
@@ -925,7 +933,10 @@ int32_t QCameraReprocessChannel::addReprocStreamsFromSource(QCameraAllocator& al
             } else {
                 rp_cfg.pp_type = CAM_ONLINE_REPROCESS_TYPE;
                 rp_cfg.online.input_stream_id = pStream->getMyServerID();
-                rp_cfg.online.input_stream_type = pStream->getMyType();
+                if (CAM_STREAM_TYPE_OFFLINE_PROC ==
+                        (rp_cfg.online.input_stream_type = pStream->getMyType())) {
+                    rp_cfg.online.input_stream_type = pStream->getMyOriginalType();
+                }
             }
             streamInfo->reprocess_config = rp_cfg;
             streamInfo->reprocess_config.pp_feature_config = config;

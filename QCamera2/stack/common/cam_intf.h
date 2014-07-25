@@ -300,6 +300,9 @@ typedef struct{
     cam_opti_zoom_t      opti_zoom_settings_need;
     /* true Portrait info */
     cam_true_portrait_t  true_portrait_settings_need;
+    /* FSSR info */
+    cam_fssr_t      fssr_settings_need;
+
     /* Sensor type information */
     cam_sensor_type_t sensor_type;
 } cam_capability_t;

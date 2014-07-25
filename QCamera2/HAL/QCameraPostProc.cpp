@@ -67,6 +67,7 @@ QCameraPostProcessor::QCameraPostProcessor(QCamera2HardwareInterface *cam_ctrl)
       m_pJpegExifObj(NULL),
       m_bThumbnailNeeded(TRUE),
       m_pReprocChannel(NULL),
+      m_pDualReprocChannel(NULL),
       m_bInited(FALSE),
       m_inputPPQ(releasePPInputData, this),
       m_ongoingPPQ(releaseOngoingPPData, this),
@@ -106,6 +107,11 @@ QCameraPostProcessor::~QCameraPostProcessor()
         m_pReprocChannel->stop();
         delete m_pReprocChannel;
         m_pReprocChannel = NULL;
+    }
+    if (m_pDualReprocChannel != NULL) {
+        m_pDualReprocChannel->stop();
+        delete m_pDualReprocChannel;
+        m_pDualReprocChannel = NULL;
     }
 }
 
@@ -217,6 +223,27 @@ int32_t QCameraPostProcessor::start(QCameraChannel *pSrcChannel)
             ALOGE("%s: cannot start reprocess channel", __func__);
             delete m_pReprocChannel;
             m_pReprocChannel = NULL;
+            return rc;
+        }
+    }
+
+    if (m_pReprocChannel && m_parent->needDualReprocess()) {
+        if (m_pDualReprocChannel != NULL) {
+            delete m_pDualReprocChannel;
+            m_pDualReprocChannel = NULL;
+        }
+        // if reprocess is needed, start reprocess channel
+        m_pDualReprocChannel = m_parent->addDualReprocChannel(m_pReprocChannel);
+        if (m_pDualReprocChannel == NULL) {
+            ALOGE("%s: cannot add second reprocess channel", __func__);
+            return UNKNOWN_ERROR;
+        }
+
+        rc = m_pDualReprocChannel->start();
+        if (rc != 0) {
+            ALOGE("%s: cannot start second reprocess channel", __func__);
+            delete m_pDualReprocChannel;
+            m_pDualReprocChannel = NULL;
             return rc;
         }
     }
@@ -1122,6 +1149,9 @@ void QCameraPostProcessor::releaseSuperBuf(mm_camera_super_buf_t *super_buf)
             if (m_pReprocChannel != NULL &&
                 m_pReprocChannel->getMyHandle() == super_buf->ch_id) {
                 pChannel = m_pReprocChannel;
+            } else if (m_pDualReprocChannel != NULL &&
+                m_pDualReprocChannel->getMyHandle() == super_buf->ch_id) {
+                pChannel = m_pDualReprocChannel;
             }
         }
 
@@ -1337,6 +1367,9 @@ int32_t QCameraPostProcessor::queryStreams(QCameraStream **main,
         if (m_pReprocChannel != NULL &&
             m_pReprocChannel->getMyHandle() == frame->ch_id) {
             pChannel = m_pReprocChannel;
+        } else if (m_pDualReprocChannel != NULL &&
+            m_pDualReprocChannel->getMyHandle() == frame->ch_id) {
+            pChannel = m_pDualReprocChannel;
         }
     }
     if (pChannel == NULL) {
@@ -1489,6 +1522,9 @@ int32_t QCameraPostProcessor::encodeData(qcamera_jpeg_data_t *jpeg_job_data,
         if (m_pReprocChannel != NULL &&
             m_pReprocChannel->getMyHandle() == recvd_frame->ch_id) {
             pChannel = m_pReprocChannel;
+        } else if (m_pDualReprocChannel != NULL &&
+            m_pDualReprocChannel->getMyHandle() == recvd_frame->ch_id) {
+            pChannel = m_pDualReprocChannel;
         }
     }
 
@@ -1593,7 +1629,8 @@ int32_t QCameraPostProcessor::encodeData(qcamera_jpeg_data_t *jpeg_job_data,
     bool img_feature_enabled =
       m_parent->mParameters.isUbiFocusEnabled() ||
       m_parent->mParameters.isChromaFlashEnabled() ||
-      m_parent->mParameters.isOptiZoomEnabled();
+      m_parent->mParameters.isOptiZoomEnabled() ||
+      m_parent->mParameters.isfssrEnabled();
 
     CDBG_HIGH("%s:%d] Crop needed %d", __func__, __LINE__, img_feature_enabled);
     crop.left = 0;
@@ -2158,6 +2195,13 @@ void *QCameraPostProcessor::dataProcessRoutine(void *data)
                     pme->m_pReprocChannel = NULL;
                 }
 
+                // stop dual reproc channel if exists
+                if (pme->m_pDualReprocChannel != NULL) {
+                    pme->m_pDualReprocChannel->stop();
+                    delete pme->m_pDualReprocChannel;
+                    pme->m_pDualReprocChannel = NULL;
+                }
+
                 // flush ongoing postproc Queue
                 pme->m_ongoingPPQ.flush();
 
@@ -2307,6 +2351,21 @@ int32_t QCameraPostProcessor::reprocess(qcamera_pp_data_t *pp_job)
         return BAD_VALUE;
     }
 
+    // find appropriate reprocess channel
+    QCameraReprocessChannel *pChannel = NULL;
+    if (m_pReprocChannel != NULL &&
+        m_pReprocChannel->getSourceChannel()->getMyHandle() == pp_job->src_frame->ch_id) {
+        pChannel = m_pReprocChannel;
+    } else if (m_pDualReprocChannel != NULL &&
+        m_pDualReprocChannel->getSourceChannel()->getMyHandle() == pp_job->src_frame->ch_id) {
+        pChannel = m_pDualReprocChannel;
+    }
+
+    if (NULL == pChannel) {
+        CDBG_HIGH("Unable to find reproc channel from source super buf");
+        return BAD_VALUE;
+    }
+
     if (m_parent->isRegularCapture()) {
        if ((NULL != pp_job->src_frame) &&
            (0 < pp_job->src_frame->num_bufs)) {
@@ -2331,10 +2390,10 @@ int32_t QCameraPostProcessor::reprocess(qcamera_pp_data_t *pp_job)
        // at this point the source channel will not exist.
        pp_job->reproc_frame_release = true;
        m_ongoingPPQ.enqueue((void *)pp_job);
-       rc = m_pReprocChannel->doReprocessOffline(pp_job->src_frame);
+       rc = pChannel->doReprocessOffline(pp_job->src_frame);
     } else {
         m_ongoingPPQ.enqueue((void *)pp_job);
-        rc = m_pReprocChannel->doReprocess(pp_job->src_frame);
+        rc = pChannel->doReprocess(pp_job->src_frame);
     }
 
     if (NO_ERROR != rc) {
