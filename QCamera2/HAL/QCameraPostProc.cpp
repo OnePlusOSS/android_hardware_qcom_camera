@@ -770,10 +770,24 @@ int32_t QCameraPostProcessor::processJpegEvt(qcamera_jpeg_evt_payload_t *evt)
             rc = FAILED_TRANSACTION;
             goto end;
         }
-
-        m_parent->dumpJpegToFile(evt->out_data.buf_vaddr,
-                                  evt->out_data.buf_filled_len,
-                                  evt->jobId);
+        if (!mJpegMemOpt) {
+            m_parent->dumpJpegToFile(evt->out_data.buf_vaddr,
+                                      evt->out_data.buf_filled_len,
+                                      evt->jobId);
+        }
+        else {
+            jpeg_out  = (omx_jpeg_ouput_buf_t*) evt->out_data.buf_vaddr;
+            if (jpeg_out != NULL) {
+                jpeg_mem = (camera_memory_t *)jpeg_out->mem_hdl;
+                if (jpeg_mem != NULL) {
+                    m_parent->dumpJpegToFile(jpeg_mem->data,
+                                              evt->out_data.buf_filled_len,
+                                              evt->jobId);
+                    jpeg_mem = NULL;
+                }
+                jpeg_out = NULL;
+            }
+        }
         if(true == m_parent->m_bIntEvtPending) {
           //signal the eztune condition variable
           pthread_mutex_lock(&m_parent->m_int_lock);
