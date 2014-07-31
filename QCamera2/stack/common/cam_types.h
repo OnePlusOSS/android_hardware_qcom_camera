@@ -798,7 +798,10 @@ typedef enum {
     CAM_AF_SCANNING,
     CAM_AF_FOCUSED,
     CAM_AF_NOT_FOCUSED,
-    CAM_AF_INACTIVE
+    CAM_AF_INACTIVE,
+    CAM_AF_PASSIVE_SCANNING,
+    CAM_AF_PASSIVE_FOCUSED,
+    CAM_AF_PASSIVE_UNFOCUSED,
 } cam_autofocus_state_t;
 
 typedef struct {
