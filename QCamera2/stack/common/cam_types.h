@@ -737,6 +737,7 @@ typedef struct {
     uint8_t num_faces_detected;                /* number of faces detected */
     cam_face_detection_info_t faces[MAX_ROI];  /* detailed information of faces detected */
     qcamera_face_detect_type_t fd_type;        /* face detect for preview or snapshot frame*/
+    cam_dimension_t fd_frame_dim;              /* frame dims on which fd is applied */
 } cam_face_detection_data_t;
 
 #define CAM_HISTOGRAM_STATS_SIZE 256
@@ -1437,6 +1438,7 @@ typedef struct {
 #define CAM_QCOM_FEATURE_LLVD           (1<<15)
 #define CAM_QCOM_FEATURE_DIS20          (1<<16)
 #define CAM_QCOM_FEATURE_SENSOR_HDR     (1<<17)
+#define CAM_QCOM_FEATURE_TRUEPORTRAIT   (1<<18)
 
 // Debug mask
 #define HAL_DEBUG_MASK_HAL                 (1<<0)
@@ -1501,6 +1503,13 @@ typedef struct {
     uint8_t zoom_threshold;
 } cam_opti_zoom_t;
 
+typedef struct {
+    uint8_t enable;
+    uint32_t meta_max_size;
+    uint32_t meta_header_size;
+    uint32_t body_mask_width;
+} cam_true_portrait_t;
+
 typedef enum {
     CAM_FLASH_OFF,
     CAM_FLASH_ON
@@ -1527,7 +1536,7 @@ typedef struct {
 
     uint8_t zoom_level;
     cam_flash_value_t flash_value;
-
+    cam_true_portrait_t tp_param;
 } cam_pp_feature_config_t;
 
 typedef struct {

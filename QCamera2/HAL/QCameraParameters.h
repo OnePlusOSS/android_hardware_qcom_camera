@@ -614,6 +614,13 @@ public:
     inline bool isUbiFocusEnabled() {return m_bAFBracketingOn;};
     inline bool isChromaFlashEnabled() {return m_bChromaFlashOn;};
     inline bool isSeeMoreEnabled() {return m_bSeeMoreOn;};
+    inline bool isTruePortraitEnabled() {return m_bTruePortraitOn;};
+    inline uint32_t TpMaxMetaSize() {
+        return m_pCapability->true_portrait_settings_need.meta_max_size;};
+    inline uint32_t TpHeaderSize() {
+        return m_pCapability->true_portrait_settings_need.meta_header_size;};
+    inline uint32_t TPBodyMaskWidth() {
+        return m_pCapability->true_portrait_settings_need.body_mask_width;};
     bool isOptiZoomEnabled();
     bool isDifferentFlipZSL();
     int32_t commitAFBracket(cam_af_bracketing_t afBracket);
@@ -881,6 +888,8 @@ private:
     int32_t mFlashValue;
     int32_t mFlashDaemonValue;
     bool m_bSensorHDREnabled;             // if HDR is enabled
+    bool m_bTruePortraitOn;
+
 };
 
 }; // namespace qcamera
