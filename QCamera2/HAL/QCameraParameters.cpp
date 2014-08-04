@@ -4583,7 +4583,6 @@ int32_t QCameraParameters::init(cam_capability_t *capabilities,
         goto TRANS_INIT_ERROR2;
     }
     m_pParamBuf = (parm_buffer_new_t*) DATA_PTR(m_pParamHeap,0);
-    sem_init(&m_pParamBuf->cam_sync_sem, 0, 0);
 
     initDefaultParameters();
 
@@ -4616,8 +4615,6 @@ void QCameraParameters::deinit()
     if (!m_bInited) {
         return;
     }
-
-    sem_destroy(&m_pParamBuf->cam_sync_sem);
 
     //clear all entries in the map
     String8 emptyStr;
@@ -8810,8 +8807,7 @@ int32_t QCameraParameters::commitSetBatch()
     if (m_pParamBuf->num_entry > 0) {
         rc = m_pCamOpsTbl->ops->set_parms(m_pCamOpsTbl->camera_handle,
                                                       (void *)m_pParamBuf);
-        CDBG("%s:waiting for commitSetBatch to complete",__func__);
-        sem_wait(&m_pParamBuf->cam_sync_sem);
+        CDBG("%s: commitSetBatch done",__func__);
     }
     if (rc == NO_ERROR) {
         // commit change from temp storage into param map
@@ -8837,8 +8833,7 @@ int32_t QCameraParameters::commitGetBatch()
     if (m_pParamBuf->num_entry > 0) {
         rc = m_pCamOpsTbl->ops->get_parms(m_pCamOpsTbl->camera_handle,
                                                           (void *)m_pParamBuf);
-        CDBG_HIGH("%s:waiting for commitGetBatch to complete",__func__);
-        sem_wait(&m_pParamBuf->cam_sync_sem);
+        CDBG_HIGH("%s: commitGetBatch done",__func__);
     }
     return rc;
 }
