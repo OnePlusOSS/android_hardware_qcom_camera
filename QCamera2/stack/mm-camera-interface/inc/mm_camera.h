@@ -316,7 +316,7 @@ typedef struct {
     uint32_t buf_idx;
     int32_t plane_idx;
     int fd;
-    uint32_t size;
+    size_t size;
 } mm_evt_paylod_map_stream_buf_t;
 
 typedef struct {
@@ -469,7 +469,7 @@ extern int32_t mm_camera_util_g_ctrl(int32_t fd,
 /* send msg throught domain socket for fd mapping */
 extern int32_t mm_camera_util_sendmsg(mm_camera_obj_t *my_obj,
                                       void *msg,
-                                      uint32_t buf_size,
+                                      size_t buf_size,
                                       int sendfd);
 /* Check if hardware target is A family */
 uint8_t mm_camera_util_chip_is_a_family(void);
@@ -491,7 +491,7 @@ extern int32_t mm_camera_get_parms(mm_camera_obj_t *my_obj,
 extern int32_t mm_camera_map_buf(mm_camera_obj_t *my_obj,
                                  uint8_t buf_type,
                                  int fd,
-                                 uint32_t size);
+                                 size_t size);
 extern int32_t mm_camera_unmap_buf(mm_camera_obj_t *my_obj,
                                    uint8_t buf_type);
 extern int32_t mm_camera_do_auto_focus(mm_camera_obj_t *my_obj);
@@ -559,7 +559,7 @@ extern int32_t mm_camera_map_stream_buf(mm_camera_obj_t *my_obj,
                                         uint32_t buf_idx,
                                         int32_t plane_idx,
                                         int fd,
-                                        uint32_t size);
+                                        size_t size);
 extern int32_t mm_camera_unmap_stream_buf(mm_camera_obj_t *my_obj,
                                           uint32_t ch_id,
                                           uint32_t stream_id,
@@ -603,7 +603,7 @@ extern int32_t mm_stream_map_buf(mm_stream_t *my_obj,
                                  uint32_t frame_idx,
                                  int32_t plane_idx,
                                  int fd,
-                                 uint32_t size);
+                                 size_t size);
 extern int32_t mm_stream_unmap_buf(mm_stream_t *my_obj,
                                    uint8_t buf_type,
                                    uint32_t frame_idx,
@@ -644,5 +644,5 @@ extern int32_t mm_camera_cmd_thread_release(mm_camera_cmd_thread_t * cmd_thread)
 extern int32_t mm_camera_channel_advanced_capture(mm_camera_obj_t *my_obj,
                                                mm_camera_advanced_capture_t advanced_capturetype,
                                                uint32_t ch_id,
-                                               int32_t start_flag);
+                                               uint32_t start_flag);
 #endif /* __MM_CAMERA_H__ */
