@@ -273,6 +273,10 @@ public:
     static const char KEY_QC_OPTI_ZOOM[];
     static const char KEY_QC_SUPPORTED_OPTI_ZOOM_MODES[];
 
+    //True Portrait
+    static const char KEY_QC_TRUE_PORTRAIT[];
+    static const char KEY_QC_SUPPORTED_TRUE_PORTRAIT_MODES[];
+
     //See more
     static const char KEY_QC_SEE_MORE[];
     static const char KEY_QC_SUPPORTED_SEE_MORE_MODES[];
@@ -450,6 +454,10 @@ public:
     // Values for See More settings.
     static const char SEE_MORE_OFF[];
     static const char SEE_MORE_ON[];
+
+    // Values for True Portrait settings.
+    static const char TRUE_PORTRAIT_OFF[];
+    static const char TRUE_PORTRAIT_ON[];
 
     // Values for HFR settings.
     static const char VIDEO_HFR_OFF[];
@@ -691,6 +699,7 @@ private:
     int32_t setAFBracket(const QCameraParameters& );
     int32_t setChromaFlash(const QCameraParameters& );
     int32_t setOptiZoom(const QCameraParameters& );
+    int32_t setTruePortrait(const QCameraParameters& );
     int32_t setSeeMore(const QCameraParameters& );
     int32_t setRedeyeReduction(const QCameraParameters& );
     int32_t setGpsLocation(const QCameraParameters& );
@@ -751,6 +760,7 @@ private:
     int32_t setAFBracket(const char *afBracketStr);
     int32_t setChromaFlash(const char *chromaFlashStr);
     int32_t setOptiZoom(const char *optiZoomStr);
+    int32_t setTruePortrait(const char *truePortraitStr);
     int32_t setSeeMore(const char *optiZoomStr);
     int32_t setRedeyeReduction(const char *redeyeStr);
     int32_t setWaveletDenoise(const char *wnrStr);
@@ -822,6 +832,7 @@ private:
     static const QCameraMap AF_BRACKETING_MODES_MAP[];
     static const QCameraMap CHROMA_FLASH_MODES_MAP[];
     static const QCameraMap OPTI_ZOOM_MODES_MAP[];
+    static const QCameraMap TRUE_PORTRAIT_MODES_MAP[];
     static const QCameraMap CDS_MODES_MAP[];
     static const QCameraMap SEE_MORE_MODES_MAP[];
 

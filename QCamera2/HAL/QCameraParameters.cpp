@@ -132,6 +132,8 @@ const char QCameraParameters::KEY_QC_OPTI_ZOOM[] = "opti-zoom";
 const char QCameraParameters::KEY_QC_SEE_MORE[] = "see-more";
 const char QCameraParameters::KEY_QC_SUPPORTED_OPTI_ZOOM_MODES[] = "opti-zoom-values";
 const char QCameraParameters::KEY_QC_SUPPORTED_SEE_MORE_MODES[] = "see-more-values";
+const char QCameraParameters::KEY_QC_TRUE_PORTRAIT[] = "true-portrait";
+const char QCameraParameters::KEY_QC_SUPPORTED_TRUE_PORTRAIT_MODES[] = "true-portrait-values";
 const char QCameraParameters::KEY_QC_WB_MANUAL_CCT[] = "wb-manual-cct";
 const char QCameraParameters::KEY_QC_MIN_WB_CCT[] = "min-wb-cct";
 const char QCameraParameters::KEY_QC_MAX_WB_CCT[] = "max-wb-cct";
@@ -323,6 +325,10 @@ const char QCameraParameters::CHROMA_FLASH_ON[] = "chroma-flash-on";
 // Values for Opti Zoom setting.
 const char QCameraParameters::OPTI_ZOOM_OFF[] = "opti-zoom-off";
 const char QCameraParameters::OPTI_ZOOM_ON[] = "opti-zoom-on";
+
+// Values for True Portrait setting.
+const char QCameraParameters::TRUE_PORTRAIT_OFF[] = "true-portrait-off";
+const char QCameraParameters::TRUE_PORTRAIT_ON[] = "true-portrait-on";
 
 // Values for FLIP settings.
 const char QCameraParameters::FLIP_MODE_OFF[] = "off";
@@ -596,6 +602,11 @@ const QCameraParameters::QCameraMap QCameraParameters::CHROMA_FLASH_MODES_MAP[] 
 const QCameraParameters::QCameraMap QCameraParameters::OPTI_ZOOM_MODES_MAP[] = {
     { OPTI_ZOOM_OFF, 0 },
     { OPTI_ZOOM_ON,  1 }
+};
+
+const QCameraParameters::QCameraMap QCameraParameters::TRUE_PORTRAIT_MODES_MAP[] = {
+    { TRUE_PORTRAIT_OFF, 0 },
+    { TRUE_PORTRAIT_ON,  1 }
 };
 
 const QCameraParameters::QCameraMap QCameraParameters::CDS_MODES_MAP[] = {
@@ -3188,6 +3199,38 @@ int32_t QCameraParameters::setOptiZoom(const QCameraParameters& params)
 }
 
 /*===========================================================================
+ * FUNCTION   : setTruePortrait
+ *
+ * DESCRIPTION: set true portrait from user setting
+ *
+ * PARAMETERS :
+ *   @params  : user setting parameters
+ *
+ * RETURN     : int32_t type of status
+ *              NO_ERROR  -- success
+ *              none-zero failure code
+ *==========================================================================*/
+int32_t QCameraParameters::setTruePortrait(const QCameraParameters& params)
+{
+    if ((m_pCapability->qcom_supported_feature_mask &
+        CAM_QCOM_FEATURE_TRUEPORTRAIT) == 0){
+        CDBG("%s: True Portrait is not supported",__func__);
+        return NO_ERROR;
+    }
+    const char *str = params.get(KEY_QC_TRUE_PORTRAIT);
+    const char *prev_str = get(KEY_QC_TRUE_PORTRAIT);
+    CDBG_HIGH("%s: str =%s & prev_str =%s",__func__, str, prev_str);
+    if (str != NULL) {
+        if (prev_str == NULL ||
+            strcmp(str, prev_str) != 0) {
+            m_bNeedRestart = true;
+            return setTruePortrait(str);
+        }
+    }
+    return NO_ERROR;
+}
+
+/*===========================================================================
  * FUNCTION   : setSeeMore
  *
  * DESCRIPTION: set see more (llvd) from user setting
@@ -3897,6 +3940,7 @@ int32_t QCameraParameters::updateParameters(QCameraParameters& params,
     if ((rc = setOptiZoom(params)))                     final_rc = rc;
     if ((rc = setSeeMore(params)))                      final_rc = rc;
     if ((rc = setLongshotParam(params)))                final_rc = rc;
+    if ((rc = setTruePortrait(params)))                 final_rc = rc;
 
     if ((rc = updateFlash(false)))                      final_rc = rc;
 
@@ -4371,6 +4415,14 @@ int32_t QCameraParameters::initDefaultParameters()
                 sizeof(OPTI_ZOOM_MODES_MAP) / sizeof(QCameraMap));
         set(KEY_QC_SUPPORTED_OPTI_ZOOM_MODES, optiZoomValues);
         setOptiZoom(OPTI_ZOOM_OFF);
+    }
+
+    //Set True Portrait
+    if ((m_pCapability->qcom_supported_feature_mask & CAM_QCOM_FEATURE_TRUEPORTRAIT) > 0) {
+        String8 truePortraitValues = createValuesStringFromMap(
+                TRUE_PORTRAIT_MODES_MAP,
+                sizeof(TRUE_PORTRAIT_MODES_MAP) / sizeof(QCameraMap));
+        set(KEY_QC_SUPPORTED_TRUE_PORTRAIT_MODES, truePortraitValues);
     }
 
     // Set Denoise
@@ -6676,6 +6728,36 @@ int32_t QCameraParameters::setOptiZoom(const char *optiZoomStr)
     }
     ALOGE("Invalid opti zoom value: %s",
         (optiZoomStr == NULL) ? "NULL" : optiZoomStr);
+    return BAD_VALUE;
+}
+
+/*===========================================================================
+ * FUNCTION   : setTruePortrait
+ *
+ * DESCRIPTION: set true portrait value
+ *
+ * PARAMETERS :
+ *   @optiZoomStr : true portrait value string
+ *
+ * RETURN     : int32_t type of status
+ *              NO_ERROR  -- success
+ *              none-zero failure code
+ *==========================================================================*/
+int32_t QCameraParameters::setTruePortrait(const char *truePortraitStr)
+{
+    CDBG_HIGH("%s: truePortraitStr =%s",__func__,truePortraitStr);
+    if(truePortraitStr != NULL) {
+        int value = lookupAttr(TRUE_PORTRAIT_MODES_MAP,
+                sizeof(TRUE_PORTRAIT_MODES_MAP)/sizeof(QCameraMap),
+                truePortraitStr);
+        if(value != NAME_NOT_FOUND) {
+            m_bTruePortraitOn = (value != 0);
+            updateParamEntry(KEY_QC_TRUE_PORTRAIT, truePortraitStr);
+            return NO_ERROR;
+        }
+    }
+    ALOGE("Invalid true portrait value: %s",
+        (truePortraitStr == NULL) ? "NULL" : truePortraitStr);
     return BAD_VALUE;
 }
 
