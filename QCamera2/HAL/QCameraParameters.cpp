@@ -664,7 +664,7 @@ QCameraParameters::QCameraParameters()
       m_bMobiMask(0),
       m_bDISEnabled(false),
       m_AdjustFPS(NULL),
-      m_bHDR1xFrameEnabled(true),
+      m_bHDR1xFrameEnabled(false),
       m_HDRSceneEnabled(false),
       m_bHDRThumbnailProcessNeeded(false),
       m_bHDR1xExtraBufferNeeded(true),
@@ -749,7 +749,7 @@ QCameraParameters::QCameraParameters(const String8 &params)
     m_bHDREnabled(false),
     m_bAVTimerEnabled(false),
     m_AdjustFPS(NULL),
-    m_bHDR1xFrameEnabled(true),
+    m_bHDR1xFrameEnabled(false),
     m_HDRSceneEnabled(false),
     m_bHDRThumbnailProcessNeeded(false),
     m_bHDR1xExtraBufferNeeded(true),
@@ -3002,24 +3002,7 @@ int32_t QCameraParameters::setSceneMode(const QCameraParameters& params)
             } else if ((m_bHDREnabled) ||
                 ((prev_str != NULL) && (strcmp(prev_str, SCENE_MODE_HDR) == 0))) {
                 CDBG_HIGH("%s: scene mode changed between HDR and non-HDR, need restart", __func__);
-
                 m_bNeedRestart = true;
-                // set if hdr 1x image is needed
-                const char *need_hdr_1x = params.get(KEY_QC_HDR_NEED_1X);
-                if (need_hdr_1x != NULL) {
-                    if (strcmp(need_hdr_1x, VALUE_TRUE) == 0) {
-                        m_bHDR1xFrameEnabled = true;
-                    } else {
-                        m_bHDR1xFrameEnabled = false;
-                    }
-
-                    updateParamEntry(KEY_QC_HDR_NEED_1X, need_hdr_1x);
-                }
-
-                AddSetParmEntryToBatch(m_pParamBuf,
-                                       CAM_INTF_PARM_HDR_NEED_1X,
-                                       sizeof(m_bHDR1xFrameEnabled),
-                                       &m_bHDR1xFrameEnabled);
             }
 
             rc = setSceneMode(str);
@@ -3028,6 +3011,26 @@ int32_t QCameraParameters::setSceneMode(const QCameraParameters& params)
             if(rc == NO_ERROR)
                 rc = setScenePreferences(params);
 
+        }
+    }
+    if (m_bHDREnabled) {
+        str = params.get(KEY_QC_HDR_NEED_1X);
+        prev_str = get(KEY_QC_HDR_NEED_1X);
+        if (str != NULL) {
+            if (prev_str == NULL ||
+                strcmp(str, prev_str) != 0) {
+                if (strcmp(str,VALUE_ON) == 0) {
+                    m_bHDR1xFrameEnabled = true;
+                }
+                else {
+                    m_bHDR1xFrameEnabled = false;
+                }
+            updateParamEntry(KEY_QC_HDR_NEED_1X, str);
+            AddSetParmEntryToBatch(m_pParamBuf,
+                                   CAM_INTF_PARM_HDR_NEED_1X,
+                                   sizeof(m_bHDR1xFrameEnabled),
+                                   &m_bHDR1xFrameEnabled);
+            }
         }
     }
     return rc;
@@ -4480,7 +4483,7 @@ int32_t QCameraParameters::initDefaultParameters()
     set(KEY_QC_SUPPORTED_SCENE_DETECT, onOffValues);
     setSceneDetect(VALUE_OFF);
     m_bHDREnabled = false;
-    m_bHDR1xFrameEnabled = true;
+    m_bHDR1xFrameEnabled = false;
 
     m_bHDRThumbnailProcessNeeded = false;
     m_bHDR1xExtraBufferNeeded = true;
