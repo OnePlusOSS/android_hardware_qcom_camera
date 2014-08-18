@@ -302,7 +302,8 @@ typedef struct{
     cam_true_portrait_t  true_portrait_settings_need;
     /* FSSR info */
     cam_fssr_t      fssr_settings_need;
-
+    /* AF bracketing info for multi-touch focus*/
+    cam_af_bracketing_t  mtf_af_bracketing_parm;
     /* Sensor type information */
     cam_sensor_type_t sensor_type;
 } cam_capability_t;
@@ -551,6 +552,7 @@ typedef union {
     INCLUDE(CAM_INTF_PARM_ISP_DEBUG_MASK,           uint32_t,                    1);
     INCLUDE(CAM_INTF_PARM_ALGO_OPTIMIZATIONS_MASK,  uint32_t,                    1);
     INCLUDE(CAM_INTF_PARM_FOCUS_BRACKETING,         cam_af_bracketing_t,         1);
+    INCLUDE(CAM_INTF_PARM_MULTI_TOUCH_FOCUS_BRACKETING, cam_af_bracketing_t,     1);
     INCLUDE(CAM_INTF_PARM_FLASH_BRACKETING,         cam_flash_bracketing_t,      1);
 } parm_type_t;
 

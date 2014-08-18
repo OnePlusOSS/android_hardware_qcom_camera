@@ -249,7 +249,8 @@ static void mm_channel_process_stream_buf(mm_camera_cmdcb_t * cmd_cb,
         CDBG_HIGH("%s:%d] MM_CAMERA_CMD_TYPE_GENERAL", __func__, __LINE__);
         switch (cmd_cb->u.gen_cmd.type) {
             case MM_CAMERA_GENERIC_CMD_TYPE_AE_BRACKETING:
-            case MM_CAMERA_GENERIC_CMD_TYPE_AF_BRACKETING: {
+            case MM_CAMERA_GENERIC_CMD_TYPE_AF_BRACKETING:
+            case MM_CAMERA_GENERIC_CMD_TYPE_MTF_BRACKETING: {
                 int8_t start = cmd_cb->u.gen_cmd.payload[0];
                 CDBG_HIGH("%s:%d] MM_CAMERA_GENERIC_CMDTYPE_AF_BRACKETING %d",
                     __func__, __LINE__, start);
@@ -701,6 +702,16 @@ int32_t mm_channel_fsm_fn_active(mm_channel_t *my_obj,
             int32_t start_flag = ( int32_t ) in_val;
             mm_camera_generic_cmd_t gen_cmd;
             gen_cmd.type = MM_CAMERA_GENERIC_CMD_TYPE_AF_BRACKETING;
+            gen_cmd.payload[0] = start_flag;
+            rc = mm_channel_proc_general_cmd(my_obj, &gen_cmd);
+        }
+        break;
+    case MM_CHANNEL_EVT_MTF_BRACKETING:
+        {
+            CDBG_HIGH("MM_CHANNEL_EVT_MTF_BRACKETING");
+            int32_t start_flag = ( int32_t ) in_val;
+            mm_camera_generic_cmd_t gen_cmd;
+            gen_cmd.type = MM_CAMERA_GENERIC_CMD_TYPE_MTF_BRACKETING;
             gen_cmd.payload[0] = start_flag;
             rc = mm_channel_proc_general_cmd(my_obj, &gen_cmd);
         }

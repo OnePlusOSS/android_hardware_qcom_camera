@@ -250,6 +250,7 @@ typedef enum {
    MM_CAMERA_AF_BRACKETING = 0,
    MM_CAMERA_AE_BRACKETING,
    MM_CAMERA_FLASH_BRACKETING,
+   MM_CAMERA_MTF_BRACKETING,
    MM_CAMERA_ZOOM_1X,
 } mm_camera_advanced_capture_t;
 

@@ -833,9 +833,12 @@ int32_t QCameraPostProcessor::processJpegEvt(qcamera_jpeg_evt_payload_t *evt)
         }
 
         /* check if the all the captures are done */
-        if (m_parent->mParameters.isUbiRefocus() &&
+        if ((m_parent->mParameters.isUbiRefocus() &&
             (m_parent->getOutputImageCount() <
-            m_parent->mParameters.UfOutputCount())) {
+            m_parent->mParameters.UfOutputCount()))
+            || (m_parent->mParameters.isMTFRefocus()
+            && (m_parent->getOutputImageCount() <
+            m_parent->mParameters.MTFOutputCount()))) {
             jpeg_out  = (omx_jpeg_ouput_buf_t*) evt->out_data.buf_vaddr;
             jpeg_mem = (camera_memory_t *)jpeg_out->mem_hdl;
             if (NULL != jpeg_mem) {
@@ -1636,6 +1639,7 @@ int32_t QCameraPostProcessor::encodeData(qcamera_jpeg_data_t *jpeg_job_data,
     bool hdr_output_crop = m_parent->mParameters.isHDROutputCropEnabled();
     bool img_feature_enabled =
       m_parent->mParameters.isUbiFocusEnabled() ||
+      m_parent->mParameters.isMultiTouchFocusEnabled() ||
       m_parent->mParameters.isChromaFlashEnabled() ||
       m_parent->mParameters.isOptiZoomEnabled() ||
       m_parent->mParameters.isfssrEnabled();
@@ -1670,10 +1674,18 @@ int32_t QCameraPostProcessor::encodeData(qcamera_jpeg_data_t *jpeg_job_data,
                mem, imgProp.size);
            /* dump image */
            if (mem && mem->data) {
-               CAM_DUMP_TO_FILE("/data/local/ubifocus", "DepthMapImage",
-                                -1, "y",
-                                (uint8_t *)mem->data,
-                                imgProp.size);
+               if (m_parent->mParameters.isUbiFocusEnabled()){
+                   CAM_DUMP_TO_FILE("/data/local/ubifocus", "DepthMapImage",
+                                    -1, "y",
+                                    (uint8_t *)mem->data,
+                                    imgProp.size);
+               }
+               if (m_parent->mParameters.isMultiTouchFocusEnabled()) {
+                   CAM_DUMP_TO_FILE("/data/local/multiTouchFocus", "DepthMapImage",
+                                    -1, "y",
+                                    (uint8_t *)mem->data,
+                                    imgProp.size);
+               }
            }
            return NO_ERROR;
         }

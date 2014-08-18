@@ -2293,6 +2293,61 @@ bool QCamera2HardwareInterface::processUFDumps(qcamera_jpeg_evt_payload_t *evt)
 }
 
 /*===========================================================================
+ * FUNCTION   : processMTFDumps
+ *
+ * DESCRIPTION: process MTF jpeg dumps for refocus support
+ *
+ * PARAMETERS :
+ *   @evt     : payload of jpeg event, including information about jpeg encoding
+ *              status, jpeg size and so on.
+ *
+ * RETURN     : int32_t type of status
+ *              NO_ERROR  -- success
+ *              none-zero failure code
+ *
+ * NOTE       : none
+ *==========================================================================*/
+bool QCamera2HardwareInterface::processMTFDumps(qcamera_jpeg_evt_payload_t *evt)
+{
+   bool ret = true;
+   if (mParameters.isMTFRefocus()) {
+       int index = getOutputImageCount();
+       bool allFocusImage = (index == ((int)mParameters.MTFOutputCount()-1));
+       char name[CAM_FN_CNT];
+
+       camera_memory_t *jpeg_mem = NULL;
+       omx_jpeg_ouput_buf_t *jpeg_out = NULL;
+       uint32_t dataLen;
+       uint8_t *dataPtr;
+       if (!m_postprocessor.getJpegMemOpt()) {
+           dataLen = evt->out_data.buf_filled_len;
+           dataPtr = evt->out_data.buf_vaddr;
+       } else {
+           jpeg_out  = (omx_jpeg_ouput_buf_t*) evt->out_data.buf_vaddr;
+           jpeg_mem = (camera_memory_t *)jpeg_out->mem_hdl;
+           dataPtr = (uint8_t *)jpeg_mem->data;
+           dataLen = jpeg_mem->size;
+       }
+
+       if (allFocusImage)  {
+           strncpy(name, "AllFocusImage", CAM_FN_CNT - 1);
+           index = -1;
+       } else {
+           strncpy(name, "0", CAM_FN_CNT - 1);
+       }
+       CAM_DUMP_TO_FILE("/data/local/multiTouchFocus", name, index, "jpg",
+               dataPtr, dataLen);
+       CDBG("%s:%d] Dump the image %d %d allFocusImage %d", __func__, __LINE__,
+               getOutputImageCount(), index, allFocusImage);
+       setOutputImageCount(getOutputImageCount() + 1);
+       if (!allFocusImage) {
+           ret = false;
+       }
+   }
+   return ret;
+}
+
+/*===========================================================================
  * FUNCTION   : configureAdvancedCapture
  *
  * DESCRIPTION: configure Advanced Capture.
@@ -2312,6 +2367,8 @@ int32_t QCamera2HardwareInterface::configureAdvancedCapture()
     mParameters.setDisplayFrame(FALSE);
     if (mParameters.isUbiFocusEnabled()) {
         rc = configureAFBracketing();
+    } else if (mParameters.isMultiTouchFocusEnabled()) {
+        rc = configureMTFBracketing();
     } else if (mParameters.isOptiZoomEnabled()) {
         rc = configureOptiZoom();
     } else if (mParameters.isfssrEnabled()) {
@@ -2370,6 +2427,56 @@ int32_t QCamera2HardwareInterface::configureAFBracketing(bool enable)
         mIs3ALocked = true;
     }
     CDBG_HIGH("%s: X",__func__);
+    return rc;
+}
+
+/*===========================================================================
+ * FUNCTION   : configureMTFBracketing
+ *
+ * DESCRIPTION: configure multi-touch focus AF Bracketing.
+ *
+ * PARAMETERS :
+ *   @enable  : bool flag if MTF should be enabled
+ *
+ * RETURN     : int32_t type of status
+ *              NO_ERROR  -- success
+ *              none-zero failure code
+ *==========================================================================*/
+int32_t QCamera2HardwareInterface::configureMTFBracketing(bool enable)
+{
+    int32_t rc = NO_ERROR;
+    cam_af_bracketing_t *mtf_bracketing_need;
+    mtf_bracketing_need = &mParameters.m_MTFBracketInfo;
+
+    //Enable AF Bracketing.
+    cam_af_bracketing_t afBracket;
+    memset(&afBracket, 0, sizeof(cam_af_bracketing_t));
+    afBracket.enable = enable;
+    afBracket.burst_count = mtf_bracketing_need->burst_count;
+
+    for(int8_t i = 0; i < MAX_AF_BRACKETING_VALUES; i++) {
+        if (mtf_bracketing_need->focus_steps[i] != -1) {
+           afBracket.focus_steps[i] = mtf_bracketing_need->focus_steps[i];
+        }
+        CDBG_HIGH("%s: MTF focus_step[%d] = %d",
+                  __func__, i, afBracket.focus_steps[i]);
+    }
+    //Send cmd to backend to set AF Bracketing for MTF.
+    rc = mParameters.commitMTFBracket(afBracket);
+    mParameters.m_currNumBufMTF = afBracket.burst_count;
+    if ( NO_ERROR != rc ) {
+        ALOGE("%s: cannot configure MTF bracketing", __func__);
+        return rc;
+    }
+    if (enable) {
+        mParameters.set3ALock(QCameraParameters::VALUE_TRUE);
+        mIs3ALocked = true;
+    }
+    if (!enable) {
+        mParameters.m_currNumBufMTF = 0;
+    }
+    //reset multi-touch focus parameters for next use.
+    mParameters.resetMultiTouchFocusParam();
     return rc;
 }
 
@@ -2562,6 +2669,8 @@ int32_t QCamera2HardwareInterface::startAdvancedCapture(
 
     if(mParameters.isUbiFocusEnabled()) {
         rc = pChannel->startAdvancedCapture(MM_CAMERA_AF_BRACKETING);
+    } else if (mParameters.isMultiTouchFocusEnabled()) {
+        rc = pChannel->startAdvancedCapture(MM_CAMERA_MTF_BRACKETING);
     } else if (mParameters.isChromaFlashEnabled()) {
         rc = pChannel->startAdvancedCapture(MM_CAMERA_FLASH_BRACKETING);
     } else if (mParameters.isHDREnabled() || mParameters.isAEBracketEnabled()) {
@@ -2594,6 +2703,7 @@ int QCamera2HardwareInterface::takePicture()
     uint8_t numSnapshots = mParameters.getNumOfSnapshots();
 
     if (mParameters.isUbiFocusEnabled() ||
+            mParameters.isMultiTouchFocusEnabled() ||
             mParameters.isOptiZoomEnabled() ||
             mParameters.isfssrEnabled() ||
             mParameters.isHDREnabled() ||
@@ -2619,6 +2729,7 @@ int QCamera2HardwareInterface::takePicture()
                 return rc;
             }
             if (mParameters.isUbiFocusEnabled() ||
+                    mParameters.isMultiTouchFocusEnabled() ||
                     mParameters.isOptiZoomEnabled() ||
                     mParameters.isHDREnabled() ||
                     mParameters.isfssrEnabled() ||
@@ -2895,6 +3006,12 @@ int QCamera2HardwareInterface::cancelPicture()
     if (mParameters.isfssrEnabled()) {
         CDBG_HIGH("%s: Restoring previous zoom value!!",__func__);
         mParameters.setAndCommitZoom(mZoomLevel);
+    }
+    if (mParameters.isMultiTouchFocusEnabled()) {
+        configureMTFBracketing(false);
+    }
+    if (mParameters.isMultiTouchFocusSelected()) {
+        mParameters.resetMultiTouchFocusParam();
     }
     return NO_ERROR;
 }
@@ -3598,6 +3715,7 @@ void QCamera2HardwareInterface::jpegEvtHandle(jpeg_job_status_t status,
                 payload->out_data = *p_output;
             }
             obj->processUFDumps(payload);
+            obj->processMTFDumps(payload);
             obj->processEvt(QCAMERA_SM_EVT_JPEG_EVT_NOTIFY, payload);
         }
     } else {
@@ -3712,6 +3830,12 @@ int32_t QCamera2HardwareInterface::processAutoFocusEvent(cam_auto_focus_data_t &
         ret = sendEvtNotify(CAMERA_MSG_FOCUS,
                             (focus_data.focus_state == CAM_AF_FOCUSED)? true : false,
                             0);
+        // multi-touch focus feature, record current lens position when focused.
+        if (mParameters.isTouchFocusing() &&
+                focus_data.focus_state == CAM_AF_FOCUSED &&
+                mParameters.isMultiTouchFocusSelected()) {
+            mParameters.updateMTFInfo(focus_data.focus_pos);
+        }
         break;
     case CAM_FOCUS_MODE_CONTINOUS_VIDEO:
     case CAM_FOCUS_MODE_CONTINOUS_PICTURE:
@@ -4889,6 +5013,12 @@ QCameraReprocessChannel *QCamera2HardwareInterface::addReprocChannel(
         pp_config.feature_mask |= CAM_QCOM_FEATURE_UBIFOCUS;
     } else {
         pp_config.feature_mask &= ~CAM_QCOM_FEATURE_UBIFOCUS;
+    }
+
+    if(mParameters.isMultiTouchFocusEnabled()) {
+        pp_config.feature_mask |= CAM_QCOM_FEATURE_MULTI_TOUCH_FOCUS;
+    } else {
+        pp_config.feature_mask &= ~CAM_QCOM_FEATURE_MULTI_TOUCH_FOCUS;
     }
 
     if(mParameters.isChromaFlashEnabled()) {
@@ -6087,15 +6217,18 @@ bool QCamera2HardwareInterface::needReprocess()
     }
 
     if (mParameters.isUbiFocusEnabled() |
+        mParameters.isMultiTouchFocusEnabled() |
         mParameters.isChromaFlashEnabled() |
         mParameters.isHDREnabled() |
         mParameters.isfssrEnabled() |
         mParameters.isOptiZoomEnabled()) {
-        CDBG_HIGH("%s: need reprocess for |UbiFocus=%d|ChramaFlash=%d|OptiZoom=%d|fssr=%d|",
-                                         __func__,
-                                         mParameters.isUbiFocusEnabled(),
-                                         mParameters.isChromaFlashEnabled(),
-                                         mParameters.isOptiZoomEnabled(),mParameters.isfssrEnabled());
+        CDBG_HIGH("%s: need reprocess for |UbiFocus=%d|ChramaFlash=%d"
+                  "|OptiZoom=%d|fssr=%d|MultiTouchFocus=%d",__func__,
+                  mParameters.isUbiFocusEnabled(),
+                  mParameters.isChromaFlashEnabled(),
+                  mParameters.isOptiZoomEnabled(),
+                  mParameters.isfssrEnabled(),
+                  mParameters.isMultiTouchFocusEnabled());
         pthread_mutex_unlock(&m_parm_lock);
         return true;
     }

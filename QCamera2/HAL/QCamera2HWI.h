@@ -437,7 +437,8 @@ private:
     bool isZSLMode() {return mParameters.isZSLMode();};
     bool isHFRMode() {return mParameters.isHfrMode();};
     uint8_t numOfSnapshotsExpected() {
-        return mParameters.isUbiRefocus() ? 1 : mParameters.getNumOfSnapshots();};
+        return ((mParameters.isUbiRefocus() || mParameters.isMTFRefocus()) ?
+                1 : mParameters.getNumOfSnapshots());};
     bool isLongshotEnabled() { return mLongshotEnabled; };
     uint8_t getBufNumRequired(cam_stream_type_t stream_type);
     bool needFDMetadata(qcamera_ch_type_enum_t channel_type);
@@ -446,6 +447,7 @@ private:
                             cam_dimension_t size);
     int32_t configureAdvancedCapture();
     int32_t configureAFBracketing(bool enable = true);
+    int32_t configureMTFBracketing(bool enable = true);
     int32_t configureFlashBracketing();
     int32_t startAdvancedCapture(QCameraPicChannel *pChannel);
     int32_t configureZSLHDRBracketing();
@@ -456,7 +458,7 @@ private:
     inline void setOutputImageCount(uint32_t aCount) {mOutputCount = aCount;}
     inline uint32_t getOutputImageCount() {return mOutputCount;}
     bool processUFDumps(qcamera_jpeg_evt_payload_t *evt);
-
+    bool processMTFDumps(qcamera_jpeg_evt_payload_t *evt);
     static void copyList(cam_dimension_t* src_list,
                    cam_dimension_t* dst_list, uint8_t len);
     static void camEvtHandle(uint32_t camera_handle,

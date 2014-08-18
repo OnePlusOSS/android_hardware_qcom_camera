@@ -1819,6 +1819,12 @@ int32_t mm_camera_channel_advanced_capture(mm_camera_obj_t *my_obj,
                                        (void *)start_flag,
                                        NULL);
                 break;
+            case MM_CAMERA_MTF_BRACKETING:
+                rc = mm_channel_fsm_fn(ch_obj,
+                                       MM_CHANNEL_EVT_MTF_BRACKETING,
+                                       (void *)start_flag,
+                                       NULL);
+                break;
             case MM_CAMERA_ZOOM_1X:
                 rc = mm_channel_fsm_fn(ch_obj,
                                        MM_CHANNEL_EVT_ZOOM_1X,
