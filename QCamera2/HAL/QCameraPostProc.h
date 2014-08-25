@@ -126,7 +126,7 @@ public:
     void setMultipleStages(bool stages) { mMultipleStages = stages; };
     inline bool getJpegMemOpt() {return mJpegMemOpt;}
     inline void setJpegMemOpt(bool val) {mJpegMemOpt = val;}
-
+    QCameraStream* getReprocStream() {return m_reprocStream;}
 private:
     int32_t sendDataNotify(int32_t msg_type,
                            camera_memory_t *data,
@@ -202,6 +202,7 @@ private:
     uint8_t mNewJpegSessionNeeded;
     bool mMultipleStages;               // multiple stages are present
     uint32_t   m_JpegOutputMemCount;
+    QCameraStream *m_reprocStream;
 
 public:
     mm_jpeg_ops_t   mJpegHandle;
