@@ -2314,6 +2314,8 @@ int32_t QCamera2HardwareInterface::configureAdvancedCapture()
         rc = configureAFBracketing();
     } else if (mParameters.isOptiZoomEnabled()) {
         rc = configureOptiZoom();
+    } else if (mParameters.isfssrEnabled()) {
+        rc = configureFssr();
     } else if (mParameters.isChromaFlashEnabled()) {
         rc = configureFlashBracketing();
     } else if (mParameters.isHDREnabled()) {
@@ -2514,6 +2516,33 @@ int32_t QCamera2HardwareInterface::configureOptiZoom()
 }
 
 /*===========================================================================
+ * FUNCTION   : configureFssr
+ *
+ * DESCRIPTION: configure fssr.
+ *
+ * PARAMETERS : none
+ *
+ * RETURN     : int32_t type of status
+ *              NO_ERROR  -- success
+ *              none-zero failure code
+ *==========================================================================*///TODO_fssr: place holder check the req for fssr
+int32_t QCamera2HardwareInterface::configureFssr()
+{
+    int32_t rc = NO_ERROR;
+
+    //store current zoom level.
+    mZoomLevel = (uint8_t) mParameters.getInt(CameraParameters::KEY_ZOOM);
+
+    //set zoom level to 1x;
+    mParameters.setAndCommitZoom(0);
+
+    mParameters.set3ALock(QCameraParameters::VALUE_TRUE);
+    mIs3ALocked = true;
+
+    return rc;
+}
+
+/*===========================================================================
  * FUNCTION   : startAdvancedCapture
  *
  * DESCRIPTION: starts advanced capture based on capture type
@@ -2538,6 +2567,8 @@ int32_t QCamera2HardwareInterface::startAdvancedCapture(
     } else if (mParameters.isHDREnabled() || mParameters.isAEBracketEnabled()) {
         rc = pChannel->startAdvancedCapture(MM_CAMERA_AE_BRACKETING);
     } else if (mParameters.isOptiZoomEnabled()) {
+        rc = pChannel->startAdvancedCapture(MM_CAMERA_ZOOM_1X);
+    } else if (mParameters.isfssrEnabled()) {
         rc = pChannel->startAdvancedCapture(MM_CAMERA_ZOOM_1X);
     } else {
         ALOGE("%s: No Advanced Capture feature enabled!",__func__);
@@ -2564,6 +2595,7 @@ int QCamera2HardwareInterface::takePicture()
 
     if (mParameters.isUbiFocusEnabled() ||
             mParameters.isOptiZoomEnabled() ||
+            mParameters.isfssrEnabled() ||
             mParameters.isHDREnabled() ||
             mParameters.isChromaFlashEnabled() ||
             mParameters.isAEBracketEnabled()) {
@@ -2589,6 +2621,7 @@ int QCamera2HardwareInterface::takePicture()
             if (mParameters.isUbiFocusEnabled() ||
                     mParameters.isOptiZoomEnabled() ||
                     mParameters.isHDREnabled() ||
+                    mParameters.isfssrEnabled() ||
                     mParameters.isChromaFlashEnabled() ||
                     mParameters.isAEBracketEnabled()) {
                 rc = startAdvancedCapture(pZSLChannel);
@@ -2856,6 +2889,10 @@ int QCamera2HardwareInterface::cancelPicture()
         configureAFBracketing(false);
     }
     if(mParameters.isOptiZoomEnabled()) {
+        CDBG_HIGH("%s: Restoring previous zoom value!!",__func__);
+        mParameters.setAndCommitZoom(mZoomLevel);
+    }
+    if (mParameters.isfssrEnabled()) {
         CDBG_HIGH("%s: Restoring previous zoom value!!",__func__);
         mParameters.setAndCommitZoom(mZoomLevel);
     }
@@ -4992,6 +5029,85 @@ QCameraReprocessChannel *QCamera2HardwareInterface::addOfflineReprocChannel(
 }
 
 /*===========================================================================
+ * FUNCTION   : addDualReprocChannel
+ *
+ * DESCRIPTION: add a second reprocess channel that will do reprocess on frames
+ *              coming from another reproc channel
+ *
+ * PARAMETERS :
+ *   @pInputChannel : ptr to input channel whose frames will be post-processed
+ *
+ * RETURN     : Ptr to the newly created channel obj. NULL if failed.
+ *==========================================================================*/
+QCameraReprocessChannel *QCamera2HardwareInterface::addDualReprocChannel(
+                                                      QCameraChannel *pInputChannel)
+
+{
+    int32_t rc = NO_ERROR;
+    QCameraReprocessChannel *pChannel = NULL;
+
+    if (pInputChannel == NULL) {
+        ALOGE("%s: input channel obj is NULL", __func__);
+        return NULL;
+    }
+
+    pChannel = new QCameraReprocessChannel(mCameraHandle->camera_handle,
+                                           mCameraHandle->ops);
+    if (NULL == pChannel) {
+        ALOGE("%s: no mem for reprocess channel", __func__);
+        return NULL;
+    }
+
+    // Capture channel, only need snapshot and postview streams start together
+    mm_camera_channel_attr_t attr;
+    memset(&attr, 0, sizeof(mm_camera_channel_attr_t));
+    attr.notify_mode = MM_CAMERA_SUPER_BUF_NOTIFY_CONTINUOUS;
+    attr.max_unmatched_frames = mParameters.getMaxUnmatchedFramesInQueue();
+    rc = pChannel->init(&attr,
+                        dual_reproc_channel_cb_routine,
+                        this);
+    if (rc != NO_ERROR) {
+        ALOGE("%s: init reprocess channel failed, ret = %d", __func__, rc);
+        delete pChannel;
+        return NULL;
+    }
+
+    // pp feature config
+    cam_pp_feature_config_t pp_config;
+    memset(&pp_config, 0, sizeof(cam_pp_feature_config_t));
+
+    if(mParameters.isfssrEnabled()) {
+        pp_config.feature_mask |= CAM_QCOM_FEATURE_FSSR;
+        pp_config.zoom_level =
+                (uint8_t) mParameters.getInt(CameraParameters::KEY_ZOOM);
+    } else {
+        pp_config.feature_mask &= ~CAM_QCOM_FEATURE_FSSR;
+    }
+
+    uint8_t minStreamBufNum = getBufNumRequired(CAM_STREAM_TYPE_OFFLINE_PROC);;
+
+    CDBG_HIGH("%s: Allocating %d dual reproc buffers",__func__,minStreamBufNum);
+
+    bool offlineReproc = isRegularCapture();
+    rc = pChannel->addReprocStreamsFromSource(*this,
+                                              pp_config,
+                                              pInputChannel,
+                                              minStreamBufNum,
+                                              mParameters.getNumOfSnapshots(),
+                                              &gCamCapability[mCameraId]->padding_info,
+                                              mParameters,
+                                              mLongshotEnabled,
+                                              offlineReproc);
+    if (rc != NO_ERROR) {
+        delete pChannel;
+        return NULL;
+    }
+
+    return pChannel;
+}
+
+
+/*===========================================================================
  * FUNCTION   : addChannel
  *
  * DESCRIPTION: add a channel by its type
@@ -5884,6 +6000,18 @@ bool QCamera2HardwareInterface::isAFRunning()
     return isAFInProgress;
 }
 
+bool QCamera2HardwareInterface::needDualReprocess()
+{
+    bool ret = false;
+    pthread_mutex_lock(&m_parm_lock);
+    if (mParameters.isfssrEnabled()) {
+        CDBG_HIGH("%s: need do reprocess for FSSR", __func__);
+        ret = true;
+    }
+    pthread_mutex_unlock(&m_parm_lock);
+    return ret;
+}
+
 /*===========================================================================
 
 >>>>>>> c709c9a... Camera: Block CancelAF till HAL receives AF event.
@@ -5961,12 +6089,13 @@ bool QCamera2HardwareInterface::needReprocess()
     if (mParameters.isUbiFocusEnabled() |
         mParameters.isChromaFlashEnabled() |
         mParameters.isHDREnabled() |
+        mParameters.isfssrEnabled() |
         mParameters.isOptiZoomEnabled()) {
-        CDBG_HIGH("%s: need reprocess for |UbiFocus=%d|ChramaFlash=%d|OptiZoom=%d|",
+        CDBG_HIGH("%s: need reprocess for |UbiFocus=%d|ChramaFlash=%d|OptiZoom=%d|fssr=%d|",
                                          __func__,
                                          mParameters.isUbiFocusEnabled(),
                                          mParameters.isChromaFlashEnabled(),
-                                         mParameters.isOptiZoomEnabled());
+                                         mParameters.isOptiZoomEnabled(),mParameters.isfssrEnabled());
         pthread_mutex_unlock(&m_parm_lock);
         return true;
     }

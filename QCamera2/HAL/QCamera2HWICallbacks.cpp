@@ -380,6 +380,54 @@ void QCamera2HardwareInterface::postproc_channel_cb_routine(mm_camera_super_buf_
     *frame = *recvd_frame;
 
     // send to postprocessor
+    if (pme->needDualReprocess()) {
+        //send for reprocess again
+        pme->m_postprocessor.processData(frame);
+    } else {
+        pme->m_postprocessor.processPPData(frame);
+    }
+
+    CDBG_HIGH("[KPI Perf] %s: X", __func__);
+}
+
+/*===========================================================================
+ * FUNCTION   : dual_reproc_channel_cb_routine
+ *
+ * DESCRIPTION: helper function to handle postprocess superbuf callback directly from
+ *              mm-camera-interface
+ *
+ * PARAMETERS :
+ *   @recvd_frame : received super buffer
+ *   @userdata    : user data ptr
+ *
+ * RETURN    : None
+ *
+ * NOTE      : recvd_frame will be released after this call by caller, so if
+ *             async operation needed for recvd_frame, it's our responsibility
+ *             to save a copy for this variable to be used later.
+*==========================================================================*/
+void QCamera2HardwareInterface::dual_reproc_channel_cb_routine(mm_camera_super_buf_t *recvd_frame,
+                                                            void *userdata)
+{
+    CDBG_HIGH("[KPI Perf] %s: E", __func__);
+    QCamera2HardwareInterface *pme = (QCamera2HardwareInterface *)userdata;
+    if (pme == NULL ||
+        pme->mCameraHandle == NULL ||
+        pme->mCameraHandle->camera_handle != recvd_frame->camera_handle){
+        ALOGE("%s: camera obj not valid", __func__);
+        return;
+    }
+
+    // save a copy for the superbuf
+    mm_camera_super_buf_t* frame =
+               (mm_camera_super_buf_t *)malloc(sizeof(mm_camera_super_buf_t));
+    if (frame == NULL) {
+        ALOGE("%s: Error allocating memory to save received_frame structure.", __func__);
+        return;
+    }
+    *frame = *recvd_frame;
+
+    // send to postprocessor
     pme->m_postprocessor.processPPData(frame);
 
     CDBG_HIGH("[KPI Perf] %s: X", __func__);

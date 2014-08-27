@@ -360,6 +360,7 @@ private:
     bool isCaptureShutterEnabled();
     bool isAFRunning();
     bool needReprocess();
+    bool needDualReprocess();
     bool needRotationReprocess();
     bool needScaleReprocess();
     void debugShowVideoFPS();
@@ -411,6 +412,7 @@ private:
     int32_t addRawChannel();
     int32_t addMetaDataChannel();
     QCameraReprocessChannel *addReprocChannel(QCameraChannel *pInputChannel);
+    QCameraReprocessChannel *addDualReprocChannel(QCameraChannel *pInputChannel);
     QCameraReprocessChannel *addOfflineReprocChannel(
                                                 cam_pp_offline_src_config_t &img_config,
                                                 cam_pp_feature_config_t &pp_feature,
@@ -449,6 +451,7 @@ private:
     int32_t configureZSLHDRBracketing();
     int32_t startZslAdvancedCapture(QCameraPicChannel *pChannel);
     int32_t configureOptiZoom();
+    int32_t configureFssr();
     int32_t configureAEBracketing();
     inline void setOutputImageCount(uint32_t aCount) {mOutputCount = aCount;}
     inline uint32_t getOutputImageCount() {return mOutputCount;}
@@ -472,6 +475,8 @@ private:
     static void capture_channel_cb_routine(mm_camera_super_buf_t *recvd_frame,
                                            void *userdata);
     static void postproc_channel_cb_routine(mm_camera_super_buf_t *recvd_frame,
+                                            void *userdata);
+    static void dual_reproc_channel_cb_routine(mm_camera_super_buf_t *recvd_frame,
                                             void *userdata);
     static void nodisplay_preview_stream_cb_routine(mm_camera_super_buf_t *frame,
                                                     QCameraStream *stream,

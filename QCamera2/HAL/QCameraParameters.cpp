@@ -131,6 +131,8 @@ const char QCameraParameters::KEY_QC_SUPPORTED_CHROMA_FLASH_MODES[] = "chroma-fl
 const char QCameraParameters::KEY_QC_OPTI_ZOOM[] = "opti-zoom";
 const char QCameraParameters::KEY_QC_SEE_MORE[] = "see-more";
 const char QCameraParameters::KEY_QC_SUPPORTED_OPTI_ZOOM_MODES[] = "opti-zoom-values";
+const char QCameraParameters::KEY_QC_FSSR[] = "FSSR";
+const char QCameraParameters::KEY_QC_SUPPORTED_FSSR_MODES[] = "FSSR-values";
 const char QCameraParameters::KEY_QC_SUPPORTED_SEE_MORE_MODES[] = "see-more-values";
 const char QCameraParameters::KEY_QC_TRUE_PORTRAIT[] = "true-portrait";
 const char QCameraParameters::KEY_QC_SUPPORTED_TRUE_PORTRAIT_MODES[] = "true-portrait-values";
@@ -329,6 +331,10 @@ const char QCameraParameters::OPTI_ZOOM_ON[] = "opti-zoom-on";
 // Values for True Portrait setting.
 const char QCameraParameters::TRUE_PORTRAIT_OFF[] = "true-portrait-off";
 const char QCameraParameters::TRUE_PORTRAIT_ON[] = "true-portrait-on";
+
+// Values for FSSR setting.
+const char QCameraParameters::FSSR_OFF[] = "FSSR-off";
+const char QCameraParameters::FSSR_ON[] = "FSSR-on";
 
 // Values for FLIP settings.
 const char QCameraParameters::FLIP_MODE_OFF[] = "off";
@@ -609,6 +615,11 @@ const QCameraParameters::QCameraMap QCameraParameters::TRUE_PORTRAIT_MODES_MAP[]
     { TRUE_PORTRAIT_ON,  1 }
 };
 
+const QCameraParameters::QCameraMap QCameraParameters::FSSR_MODES_MAP[] = {
+    { FSSR_OFF, 0 },
+    { FSSR_ON,  1 }
+};
+
 const QCameraParameters::QCameraMap QCameraParameters::CDS_MODES_MAP[] = {
     { CDS_MODE_OFF, CAM_CDS_MODE_OFF },
     { CDS_MODE_ON, CAM_CDS_MODE_ON },
@@ -675,6 +686,7 @@ QCameraParameters::QCameraParameters()
       m_bAFBracketingOn(false),
       m_bChromaFlashOn(false),
       m_bOptiZoomOn(false),
+      m_bFssrOn(false),
       m_bSeeMoreOn(false),
       m_bHfrMode(false),
       mHfrMode(CAM_HFR_MODE_OFF),
@@ -758,6 +770,7 @@ QCameraParameters::QCameraParameters(const String8 &params)
     m_bAFBracketingOn(false),
     m_bChromaFlashOn(false),
     m_bOptiZoomOn(false),
+    m_bFssrOn(false),
     m_bSeeMoreOn(false),
     m_bHfrMode(false),
     mHfrMode(CAM_HFR_MODE_OFF),
@@ -3291,7 +3304,39 @@ int32_t QCameraParameters::setRedeyeReduction(const QCameraParameters& params)
 }
 
 /*===========================================================================
- * FUNCTION   : setGpsLocation
+ * FUNCTION   : setFssr
+ *
+ * DESCRIPTION: set fssr from user setting
+ *
+ * PARAMETERS :
+ *   @params  : user setting parameters
+ *
+ * RETURN     : int32_t type of status
+ *              NO_ERROR  -- success
+ *              none-zero failure code
+ *==========================================================================*/
+int32_t QCameraParameters::setFssr(const QCameraParameters& params)
+{
+    if ((m_pCapability->qcom_supported_feature_mask &
+        CAM_QCOM_FEATURE_FSSR) == 0) {
+        CDBG_HIGH("%s: FSSR is not supported",__func__);
+        return NO_ERROR;
+    }
+    const char *str = params.get(KEY_QC_FSSR);
+    const char *prev_str = get(KEY_QC_FSSR);
+    CDBG_HIGH("%s: str =%s & prev_str =%s",__func__, str, prev_str);
+    if (str != NULL) {
+        if (prev_str == NULL ||
+            strcmp(str, prev_str) != 0) {
+            m_bNeedRestart = true;
+            return setFssr(str);
+        }
+    }
+    return NO_ERROR;
+}
+
+
+/*===========================================================================
  *
  * DESCRIPTION: set GPS location information from user setting
  *
@@ -3941,6 +3986,7 @@ int32_t QCameraParameters::updateParameters(QCameraParameters& params,
     if ((rc = setAFBracket(params)))                    final_rc = rc;
     if ((rc = setChromaFlash(params)))                  final_rc = rc;
     if ((rc = setOptiZoom(params)))                     final_rc = rc;
+    if ((rc = setFssr(params)))                         final_rc = rc;
     if ((rc = setSeeMore(params)))                      final_rc = rc;
     if ((rc = setLongshotParam(params)))                final_rc = rc;
     if ((rc = setTruePortrait(params)))                 final_rc = rc;
@@ -4426,6 +4472,16 @@ int32_t QCameraParameters::initDefaultParameters()
                 TRUE_PORTRAIT_MODES_MAP,
                 sizeof(TRUE_PORTRAIT_MODES_MAP) / sizeof(QCameraMap));
         set(KEY_QC_SUPPORTED_TRUE_PORTRAIT_MODES, truePortraitValues);
+    }
+
+   //Set FSSR.
+    if ((m_pCapability->qcom_supported_feature_mask &
+            CAM_QCOM_FEATURE_FSSR) > 0) {
+        String8 fssrValues = createValuesStringFromMap(
+                FSSR_MODES_MAP,
+                sizeof(FSSR_MODES_MAP) / sizeof(QCameraMap));
+        set(KEY_QC_SUPPORTED_FSSR_MODES, fssrValues);
+        setFssr(FSSR_OFF);
     }
 
     // Set Denoise
@@ -6432,7 +6488,7 @@ int32_t QCameraParameters::set3ALock(const char *lockStr)
                 if (isUbiFocusEnabled()) {
                     //For Ubi focus move focus to infinity.
                     focus_mode = CAM_FOCUS_MODE_INFINITY;
-                } else if (isOptiZoomEnabled()){
+                } else if (isOptiZoomEnabled() || isfssrEnabled()){
                     //For optizoom set focus as fixed.
                     focus_mode = CAM_FOCUS_MODE_FIXED;
                 }
@@ -6734,6 +6790,36 @@ int32_t QCameraParameters::setOptiZoom(const char *optiZoomStr)
     return BAD_VALUE;
 }
 
+ /*===========================================================================
+ * FUNCTION   : setFssr
+ *
+ * DESCRIPTION: set fssr value
+ *
+ * PARAMETERS :
+ *   @aecBracketStr : fssr value string
+ *
+ * RETURN     : int32_t type of status
+ *              NO_ERROR  -- success
+ *              none-zero failure code
+ *==========================================================================*/
+int32_t QCameraParameters::setFssr(const char *fssrStr)
+{
+    CDBG_HIGH("%s: fssrStr =%s",__func__,fssrStr);
+    if(fssrStr != NULL) {
+       int value = lookupAttr(FSSR_MODES_MAP,
+                              sizeof(FSSR_MODES_MAP)/sizeof(QCameraMap),
+                              fssrStr);
+       if(value != NAME_NOT_FOUND) {
+          m_bFssrOn = (value != 0);
+          updateParamEntry(KEY_QC_FSSR, fssrStr);
+          return NO_ERROR;
+       }
+    }
+    CDBG_HIGH("Invalid fssr value: %s",
+        (fssrStr == NULL) ? "NULL" : fssrStr);
+    return BAD_VALUE;
+}
+
 /*===========================================================================
  * FUNCTION   : setTruePortrait
  *
@@ -6915,7 +7001,7 @@ int32_t QCameraParameters::updateFlash(bool commitSettings)
     }
 
     if (isHDREnabled() || m_bAeBracketingEnabled || m_bAFBracketingOn ||
-          m_bOptiZoomOn || m_bSensorHDREnabled) {
+          m_bOptiZoomOn || m_bFssrOn || m_bSensorHDREnabled) {
         value = CAM_FLASH_MODE_OFF;
     } else if (m_bChromaFlashOn) {
         value = CAM_FLASH_MODE_ON;
@@ -7685,6 +7771,9 @@ uint8_t QCameraParameters::getBurstCountForAdvancedCapture()
     } else if (isOptiZoomEnabled()) {
         //number of snapshots required for Opti Zoom.
         burstCount = m_pCapability->opti_zoom_settings_need.burst_count;
+    } else if (isfssrEnabled()) {
+        //number of snapshots required for fssr.
+        burstCount = m_pCapability->fssr_settings_need.burst_count;
     } else if (isChromaFlashEnabled()) {
         //number of snapshots required for Chroma Flash.
         //TODO: remove hardcoded value, add in capability.
@@ -9491,10 +9580,11 @@ uint8_t QCameraParameters::getMobicatMask()
 bool QCameraParameters::needThumbnailReprocess(uint32_t *pFeatureMask)
 {
     if (isUbiFocusEnabled() || isChromaFlashEnabled() ||
-        isOptiZoomEnabled()) {
+        isOptiZoomEnabled() || isfssrEnabled()) {
         *pFeatureMask &= ~CAM_QCOM_FEATURE_CHROMA_FLASH;
         *pFeatureMask &= ~CAM_QCOM_FEATURE_UBIFOCUS;
         *pFeatureMask &= ~CAM_QCOM_FEATURE_OPTIZOOM;
+        *pFeatureMask &= ~CAM_QCOM_FEATURE_FSSR;
         return false;
     } else {
         return true;
@@ -9525,8 +9615,10 @@ uint8_t QCameraParameters::getNumOfExtraBuffersForImageProc()
         numOfBufs += m_pCapability->opti_zoom_settings_need.burst_count - 1;
     } else if (isChromaFlashEnabled()) {
         numOfBufs += 1; /* flash and non flash */
+    } else if (isfssrEnabled()) {
+        numOfBufs += m_pCapability->fssr_settings_need.burst_count - 1;
+        //One output buffer of 4X size excluded
     }
-
     return numOfBufs * getBurstNum();
 }
 

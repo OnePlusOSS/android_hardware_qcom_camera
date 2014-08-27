@@ -182,6 +182,7 @@ private:
     QCameraExif *              m_pJpegExifObj;
     int8_t                     m_bThumbnailNeeded;
     QCameraReprocessChannel *  m_pReprocChannel;
+    QCameraReprocessChannel *  m_pDualReprocChannel;
 
     int8_t                     m_bInited; // if postproc is inited
 
