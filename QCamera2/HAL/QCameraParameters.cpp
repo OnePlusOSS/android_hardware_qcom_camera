@@ -136,6 +136,9 @@ const char QCameraParameters::KEY_QC_SUPPORTED_FSSR_MODES[] = "FSSR-values";
 const char QCameraParameters::KEY_QC_SUPPORTED_SEE_MORE_MODES[] = "see-more-values";
 const char QCameraParameters::KEY_QC_TRUE_PORTRAIT[] = "true-portrait";
 const char QCameraParameters::KEY_QC_SUPPORTED_TRUE_PORTRAIT_MODES[] = "true-portrait-values";
+const char QCameraParameters::KEY_QC_MULTI_TOUCH_FOCUS[] = "multi-touch-focus";
+const char QCameraParameters::KEY_QC_SUPPORTED_MULTI_TOUCH_FOCUS_MODES[] =
+        "multi-touch-focus-values";
 const char QCameraParameters::KEY_QC_WB_MANUAL_CCT[] = "wb-manual-cct";
 const char QCameraParameters::KEY_QC_MIN_WB_CCT[] = "min-wb-cct";
 const char QCameraParameters::KEY_QC_MAX_WB_CCT[] = "max-wb-cct";
@@ -335,6 +338,10 @@ const char QCameraParameters::TRUE_PORTRAIT_ON[] = "true-portrait-on";
 // Values for FSSR setting.
 const char QCameraParameters::FSSR_OFF[] = "FSSR-off";
 const char QCameraParameters::FSSR_ON[] = "FSSR-on";
+
+// Value for Multi-touch Focus setting.
+const char QCameraParameters::MULTI_TOUCH_FOCUS_OFF[] = "multi-touch-focus-off";
+const char QCameraParameters::MULTI_TOUCH_FOCUS_ON[] = "multi-touch-focus-on";
 
 // Values for FLIP settings.
 const char QCameraParameters::FLIP_MODE_OFF[] = "off";
@@ -620,6 +627,11 @@ const QCameraParameters::QCameraMap QCameraParameters::FSSR_MODES_MAP[] = {
     { FSSR_ON,  1 }
 };
 
+const QCameraParameters::QCameraMap QCameraParameters::MULTI_TOUCH_FOCUS_MODES_MAP[] = {
+    { MULTI_TOUCH_FOCUS_OFF, 0 },
+    { MULTI_TOUCH_FOCUS_ON,  1 }
+};
+
 const QCameraParameters::QCameraMap QCameraParameters::CDS_MODES_MAP[] = {
     { CDS_MODE_OFF, CAM_CDS_MODE_OFF },
     { CDS_MODE_ON, CAM_CDS_MODE_ON },
@@ -684,6 +696,7 @@ QCameraParameters::QCameraParameters()
       m_curFocusPos(-1),
       m_tempMap(),
       m_bAFBracketingOn(false),
+      m_bMultiTouchFocusOn(false),
       m_bChromaFlashOn(false),
       m_bOptiZoomOn(false),
       m_bFssrOn(false),
@@ -718,7 +731,15 @@ QCameraParameters::QCameraParameters()
 
     memset(&m_LiveSnapshotSize, 0, sizeof(m_LiveSnapshotSize));
     memset(&m_default_fps_range, 0, sizeof(m_default_fps_range));
+    memset(&m_MTFBracketInfo, 0, sizeof(m_MTFBracketInfo));
     memset(&m_hfrFpsRange, 0, sizeof(m_hfrFpsRange));
+
+    // init focus steps to -1, invalid steps
+    for (int i = 0; i < MAX_AF_BRACKETING_VALUES; i++) {
+       m_MTFBracketInfo.focus_steps[i] = -1;
+    }
+
+    m_currNumBufMTF = 0;
 }
 
 /*===========================================================================
@@ -768,6 +789,7 @@ QCameraParameters::QCameraParameters(const String8 &params)
     m_bHDROutputCropEnabled(false),
     m_tempMap(),
     m_bAFBracketingOn(false),
+    m_bMultiTouchFocusOn(false),
     m_bChromaFlashOn(false),
     m_bOptiZoomOn(false),
     m_bFssrOn(false),
@@ -783,8 +805,15 @@ QCameraParameters::QCameraParameters(const String8 &params)
     memset(&m_LiveSnapshotSize, 0, sizeof(m_LiveSnapshotSize));
     m_pTorch = NULL;
     m_bReleaseTorchCamera = false;
+    m_currNumBufMTF = 0;
     memset(&m_default_fps_range, 0, sizeof(m_default_fps_range));
     memset(&m_hfrFpsRange, 0, sizeof(m_hfrFpsRange));
+    memset(&m_MTFBracketInfo, 0, sizeof(m_MTFBracketInfo));
+
+    // init focus steps to -1, invalid steps
+    for (int i = 0; i < MAX_AF_BRACKETING_VALUES; i++) {
+       m_MTFBracketInfo.focus_steps[i] = -1;
+    }
 }
 
 /*===========================================================================
@@ -3151,6 +3180,165 @@ int32_t QCameraParameters::setAFBracket(const QCameraParameters& params)
 }
 
 /*===========================================================================
+ * FUNCTION   : setMultiTouchFocus
+ *
+ * DESCRIPTION: set multi-touch focus value
+ *
+ * PARAMETERS :
+ *   @multiTouchFocusStr : multi-touch focus value string
+ *
+ * RETURN     : int32_t type of status
+ *              NO_ERROR  -- success
+ *              none-zero failure code
+ *==========================================================================*/
+int32_t QCameraParameters::setMultiTouchFocus(const char *multiTouchFocusStr)
+{
+    if(multiTouchFocusStr != NULL) {
+        int value = lookupAttr(MULTI_TOUCH_FOCUS_MODES_MAP,
+                            sizeof(MULTI_TOUCH_FOCUS_MODES_MAP)/sizeof(QCameraMap),
+                            multiTouchFocusStr);
+        if(value != NAME_NOT_FOUND) {
+            m_bMultiTouchFocusOn = (value != 0);
+            if (!m_bMultiTouchFocusOn) {
+                resetMultiTouchFocusParam();
+            }
+            updateParamEntry(KEY_QC_MULTI_TOUCH_FOCUS, multiTouchFocusStr);
+            return NO_ERROR;
+        }
+    }
+    CDBG_HIGH("Invalid multi-touch focus value: %s",
+            (multiTouchFocusStr == NULL) ? "NULL" : multiTouchFocusStr);
+    return BAD_VALUE;
+}
+
+/*===========================================================================
+ * FUNCTION   : setMultiTouchFocus
+ *
+ * DESCRIPTION: set multi-touch focus af bracket from user setting
+ *
+ * PARAMETERS :
+ *   @params  : user setting parameters
+ *
+ * RETURN     : int32_t type of status
+ *              NO_ERROR  -- success
+ *              none-zero failure code
+ *==========================================================================*/
+int32_t QCameraParameters::setMultiTouchFocus(const QCameraParameters& params)
+{
+    if ((m_pCapability->qcom_supported_feature_mask &
+        CAM_QCOM_FEATURE_MULTI_TOUCH_FOCUS) == 0) {
+        CDBG_HIGH("%s: multi-touch focus is not supported",__func__);
+        return NO_ERROR;
+    }
+    const char *str = params.get(KEY_QC_MULTI_TOUCH_FOCUS);
+    const char *prev_str = get(KEY_QC_MULTI_TOUCH_FOCUS);
+    CDBG_HIGH("%s: str =%s & prev_str =%s",__func__, str, prev_str);
+    if (str != NULL) {
+        if (prev_str == NULL || strcmp(str, prev_str) != 0) {
+            m_bNeedRestart = true;
+            return setMultiTouchFocus(str);
+        }
+    }
+    return NO_ERROR;
+}
+
+/*===========================================================================
+ * FUNCTION   : setTouchAFAEC
+ *
+ * DESCRIPTION: set touch af aec value
+ *
+ * PARAMETERS :
+ *   @touchAfAecStr : touch focus value string
+ *
+ * RETURN     : int32_t type of status
+ *              NO_ERROR  -- success
+ *              none-zero failure code
+ *==========================================================================*/
+int32_t QCameraParameters::setTouchAFAEC(const char *touchAfAecStr)
+{
+    if (touchAfAecStr != NULL) {
+        int value = lookupAttr(TOUCH_AF_AEC_MODES_MAP,
+                               sizeof(TOUCH_AF_AEC_MODES_MAP)/sizeof(QCameraMap),
+                               touchAfAecStr);
+        if (value != NAME_NOT_FOUND) {
+            m_bTouchFocusOn = (value != 0);
+            updateParamEntry(KEY_QC_TOUCH_AF_AEC, touchAfAecStr);
+            return NO_ERROR;
+        }
+    }
+    CDBG_HIGH("Invalid touch af aec value: %s",
+            (touchAfAecStr == NULL) ? "NULL" : touchAfAecStr);
+    return BAD_VALUE;
+}
+
+/*===========================================================================
+ * FUNCTION   : setTouchAFAEC
+ *
+ * DESCRIPTION: set touch AF from user setting
+ *
+ * PARAMETERS :
+ *   @params  : user setting parameters
+ *
+ * RETURN     : int32_t type of status
+ *              NO_ERROR  -- success
+ *              none-zero failure code
+ *==========================================================================*/
+int32_t QCameraParameters::setTouchAFAEC(const QCameraParameters& params)
+{
+    const char *str = params.get(KEY_QC_TOUCH_AF_AEC);
+    const char *prev_str = get(KEY_QC_TOUCH_AF_AEC);
+    CDBG("%s: str =%s & prev_str =%s",__func__, str, prev_str);
+    if (str != NULL) {
+        if (prev_str == NULL || strcmp(str, prev_str) != 0) {
+            return setTouchAFAEC(str);
+        }
+    }
+    return NO_ERROR;
+}
+
+/*===========================================================================
+ * FUNCTION   : updateMTFInfo
+ *
+ * DESCRIPTION: update lens position selected by user
+ *
+ * PARAMETERS :
+ *   @lensPos : current lens position to add into array
+ *
+ * RETURN     : int32_t type of status
+ *              NO_ERROR  -- success
+ *              none-zero failure code
+ *==========================================================================*/
+
+int32_t QCameraParameters::updateMTFInfo(const int32_t lensPos)
+{
+   CDBG_HIGH("%s: current lens position is: %d, burst count = %d",
+           __func__, lensPos, m_MTFBracketInfo.burst_count);
+   if (m_MTFBracketInfo.burst_count >= MAX_AF_BRACKETING_VALUES) {
+       return BAD_VALUE;
+   }
+   if (m_MTFBracketInfo.burst_count == 0) {
+       m_MTFBracketInfo.focus_steps[0] = lensPos;
+   } else {
+      for (int i = 0; i < m_MTFBracketInfo.burst_count; i++) {
+         if (lensPos > m_MTFBracketInfo.focus_steps[i]) {
+            for (int j = m_MTFBracketInfo.burst_count; j > i; j--) {
+               m_MTFBracketInfo.focus_steps[j] = m_MTFBracketInfo.focus_steps[j-1];
+            }
+            m_MTFBracketInfo.focus_steps[i] = lensPos;
+            break;
+         }
+      }
+   }
+   for (int i = 0; i < MAX_AF_BRACKETING_VALUES; i++) {
+      CDBG_HIGH("%s: current focus_step[%d] = %d", __func__, i,
+          m_MTFBracketInfo.focus_steps[i]);
+   }
+
+   m_MTFBracketInfo.burst_count++;
+   return NO_ERROR;
+}
+
+/*===========================================================================
  * FUNCTION   : setChromaFlash
  *
  * DESCRIPTION: set chroma flash from user setting
@@ -3988,6 +4176,8 @@ int32_t QCameraParameters::updateParameters(QCameraParameters& params,
     if ((rc = setOptiZoom(params)))                     final_rc = rc;
     if ((rc = setFssr(params)))                         final_rc = rc;
     if ((rc = setSeeMore(params)))                      final_rc = rc;
+    if ((rc = setMultiTouchFocus(params)))              final_rc = rc;
+    if ((rc = setTouchAFAEC(params)))                   final_rc = rc;
     if ((rc = setLongshotParam(params)))                final_rc = rc;
     if ((rc = setTruePortrait(params)))                 final_rc = rc;
 
@@ -4482,6 +4672,16 @@ int32_t QCameraParameters::initDefaultParameters()
                 sizeof(FSSR_MODES_MAP) / sizeof(QCameraMap));
         set(KEY_QC_SUPPORTED_FSSR_MODES, fssrValues);
         setFssr(FSSR_OFF);
+    }
+
+    //Set Multi-touch Focus.
+    if ((m_pCapability->qcom_supported_feature_mask &
+            CAM_QCOM_FEATURE_MULTI_TOUCH_FOCUS) > 0){
+        String8 multiTouchFocusValues = createValuesStringFromMap(
+                MULTI_TOUCH_FOCUS_MODES_MAP,
+                sizeof(MULTI_TOUCH_FOCUS_MODES_MAP) / sizeof(QCameraMap));
+        set(KEY_QC_SUPPORTED_MULTI_TOUCH_FOCUS_MODES, multiTouchFocusValues);
+        setMultiTouchFocus(MULTI_TOUCH_FOCUS_OFF);
     }
 
     // Set Denoise
@@ -6485,8 +6685,8 @@ int32_t QCameraParameters::set3ALock(const char *lockStr)
             }
             int32_t focus_mode;
             if (value == 1) {
-                if (isUbiFocusEnabled()) {
-                    //For Ubi focus move focus to infinity.
+                if (isUbiFocusEnabled() || isMultiTouchFocusEnabled()) {
+                    //For Ubi focus and Multi-touch Focus move focus to infinity.
                     focus_mode = CAM_FOCUS_MODE_INFINITY;
                 } else if (isOptiZoomEnabled() || isfssrEnabled()){
                     //For optizoom set focus as fixed.
@@ -6616,6 +6816,25 @@ bool QCameraParameters::isDifferentFlipZSL()
 }
 
 /*===========================================================================
+ * FUNCTION   : isMultiTouchFocusEnabled
+ *
+ * DESCRIPTION: checks whether Multi-touch Focus is enabled
+ *
+ * PARAMETERS :
+ *
+ * RETURN     : true - enabled, false - disabled
+ *
+ *==========================================================================*/
+bool QCameraParameters::isMultiTouchFocusEnabled()
+{
+    if (m_bMultiTouchFocusOn &&
+            (m_MTFBracketInfo.burst_count > 1 || m_currNumBufMTF > 1)) {
+       return true;
+    }
+    return false;
+}
+
+/*===========================================================================
  * FUNCTION   : commitAFBracket
  *
  * DESCRIPTION: commit AF Bracket.
@@ -6651,6 +6870,60 @@ int32_t QCameraParameters::commitAFBracket(cam_af_bracketing_t afBracket)
     }
 
     return rc;
+}
+
+/*===========================================================================
+ * FUNCTION   : commitMTFBracket
+ *
+ * DESCRIPTION: commit multi-touch focus Bracket.
+ *
+ * PARAMETERS :
+ *   @mtfBracket : AF bracketing configuration
+ *
+ * RETURN     : int32_t type of status
+ *              NO_ERROR  -- success
+ *              none-zero failure code
+ *==========================================================================*/
+int32_t QCameraParameters::commitMTFBracket(cam_af_bracketing_t mtfBracket)
+{
+    int32_t rc = NO_ERROR;
+    if (initBatchUpdate(m_pParamBuf) < 0 ) {
+        ALOGE("%s:Failed to initialize group update table", __func__);
+        return BAD_TYPE;
+    }
+
+    rc = AddSetParmEntryToBatch(m_pParamBuf,
+            CAM_INTF_PARM_MULTI_TOUCH_FOCUS_BRACKETING,
+            sizeof(mtfBracket),
+            &mtfBracket);
+    if (rc != NO_ERROR) {
+        ALOGE("%s:Failed to update table", __func__);
+        return rc;
+    }
+
+    rc = commitSetBatch();
+    if (rc != NO_ERROR) {
+        ALOGE("%s:Failed to commit batch", __func__);
+    }
+
+    return rc;
+}
+
+/*===========================================================================
+ * FUNCTION   : resetMultiTouchFocusParam
+ *
+ * DESCRIPTION: reset MTF params to invalid state.
+ *
+ * PARAMETERS :
+ *
+ * RETURN     :
+ *==========================================================================*/
+void QCameraParameters::resetMultiTouchFocusParam()
+{
+    m_MTFBracketInfo.burst_count = 0;
+    for (int i = 0; i < MAX_AF_BRACKETING_VALUES; i++) {
+        m_MTFBracketInfo.focus_steps[i] = -1;
+    }
 }
 
 /*===========================================================================
@@ -7747,10 +8020,25 @@ uint8_t QCameraParameters::getNumOfSnapshots()
     }
 
     /* update the count for refocus */
-    if (isUbiRefocus())
+   if (isUbiRefocus()) {
        numOfSnapshot += UfOutputCount();
+   }
 
     return (uint8_t)numOfSnapshot;
+}
+
+/*===========================================================================
+ * FUNCTION   : MTFOutputCount
+ *
+ * DESCRIPTION: find # of output for MTF feature
+ *
+ * PARAMETERS : none
+ *
+ * RETURN     : # of output for MTF feature
+ *==========================================================================*/
+uint32_t QCameraParameters::MTFOutputCount()
+{
+   return m_currNumBufMTF+1;
 }
 
 /*===========================================================================
@@ -7778,6 +8066,9 @@ uint8_t QCameraParameters::getBurstCountForAdvancedCapture()
         //number of snapshots required for Chroma Flash.
         //TODO: remove hardcoded value, add in capability.
         burstCount = 2;
+    } else if (isMultiTouchFocusEnabled()) {
+        //number of snapshots required by multi-touch focus.
+        burstCount = m_currNumBufMTF;
     } else if (isHDREnabled()) {
         //number of snapshots required for HDR.
         burstCount = m_pCapability->hdr_bracketing_setting.num_frames;
@@ -9580,11 +9871,13 @@ uint8_t QCameraParameters::getMobicatMask()
 bool QCameraParameters::needThumbnailReprocess(uint32_t *pFeatureMask)
 {
     if (isUbiFocusEnabled() || isChromaFlashEnabled() ||
-        isOptiZoomEnabled() || isfssrEnabled()) {
+            isOptiZoomEnabled() || isfssrEnabled() ||
+            isMultiTouchFocusEnabled()) {
         *pFeatureMask &= ~CAM_QCOM_FEATURE_CHROMA_FLASH;
         *pFeatureMask &= ~CAM_QCOM_FEATURE_UBIFOCUS;
         *pFeatureMask &= ~CAM_QCOM_FEATURE_OPTIZOOM;
         *pFeatureMask &= ~CAM_QCOM_FEATURE_FSSR;
+        *pFeatureMask &= ~CAM_QCOM_FEATURE_MULTI_TOUCH_FOCUS;
         return false;
     } else {
         return true;
@@ -9610,6 +9903,11 @@ uint8_t QCameraParameters::getNumOfExtraBuffersForImageProc()
         if (isUbiRefocus()) {
             numOfBufs +=
                 m_pCapability->ubifocus_af_bracketing_need.burst_count + 1;
+        }
+    } else if (isMultiTouchFocusEnabled()) {
+        numOfBufs += m_currNumBufMTF - 1;
+        if (isMTFRefocus()) {
+            numOfBufs += m_currNumBufMTF + 1;
         }
     } else if (m_bOptiZoomOn) {
         numOfBufs += m_pCapability->opti_zoom_settings_need.burst_count - 1;
