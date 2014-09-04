@@ -162,7 +162,6 @@ mm_stream_t * mm_channel_util_get_stream_by_handler(
 static void mm_channel_dispatch_super_buf(mm_camera_cmdcb_t *cmd_cb,
                                           void* user_data)
 {
-    mm_camera_cmd_thread_name("mm_cam_cb");
     mm_channel_t * my_obj = (mm_channel_t *)user_data;
 
     if (NULL == my_obj) {
@@ -198,7 +197,6 @@ static void mm_channel_dispatch_super_buf(mm_camera_cmdcb_t *cmd_cb,
 static void mm_channel_process_stream_buf(mm_camera_cmdcb_t * cmd_cb,
                                           void *user_data)
 {
-    mm_camera_cmd_thread_name("mm_cam_cmd");
     mm_camera_super_buf_notify_mode_t notify_mode;
     mm_channel_queue_node_t *node = NULL;
     mm_channel_t *ch_obj = (mm_channel_t *)user_data;
@@ -820,6 +818,7 @@ int32_t mm_channel_init(mm_channel_t *my_obj,
     }
 
     CDBG("%s : Launch data poll thread in channel open", __func__);
+    snprintf(my_obj->threadName, THREAD_NAME_SIZE, "CAM_DataPoll");
     mm_camera_poll_thread_launch(&my_obj->poll_thread[0],
                                  MM_CAMERA_POLL_TYPE_DATA);
 
@@ -1159,11 +1158,13 @@ int32_t mm_channel_start(mm_channel_t *my_obj)
         }
 
         /* launch cb thread for dispatching super buf through cb */
+        snprintf(my_obj->cb_thread.threadName, THREAD_NAME_SIZE, "CAM_SuperBuf");
         mm_camera_cmd_thread_launch(&my_obj->cb_thread,
                                     mm_channel_dispatch_super_buf,
                                     (void*)my_obj);
 
         /* launch cmd thread for super buf dataCB */
+        snprintf(my_obj->cmd_thread.threadName, THREAD_NAME_SIZE, "CAM_SuperBufCB");
         mm_camera_cmd_thread_launch(&my_obj->cmd_thread,
                                     mm_channel_process_stream_buf,
                                     (void*)my_obj);
