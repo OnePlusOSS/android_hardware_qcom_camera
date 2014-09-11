@@ -750,6 +750,7 @@ private:
     int32_t setStatsDebugMask();
     int32_t setISPDebugMask();
     int32_t setAlgoOptimizationsMask();
+    int32_t setSensorDebugMask();
     int32_t setTintlessValue(const QCameraParameters& params);
     int32_t setCDSMode(const QCameraParameters& params);
     int32_t setMobicat(const QCameraParameters& params);

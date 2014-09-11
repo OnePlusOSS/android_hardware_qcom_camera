@@ -550,6 +550,7 @@ typedef union {
     INCLUDE(CAM_INTF_PARM_STATS_DEBUG_MASK,         uint32_t,                    1);
     INCLUDE(CAM_INTF_PARM_ISP_DEBUG_MASK,           uint32_t,                    1);
     INCLUDE(CAM_INTF_PARM_ALGO_OPTIMIZATIONS_MASK,  uint32_t,                    1);
+    INCLUDE(CAM_INTF_PARM_SENSOR_DEBUG_MASK,        uint32_t,                    1);
     INCLUDE(CAM_INTF_PARM_FOCUS_BRACKETING,         cam_af_bracketing_t,         1);
     INCLUDE(CAM_INTF_PARM_MULTI_TOUCH_FOCUS_BRACKETING, cam_af_bracketing_t,     1);
     INCLUDE(CAM_INTF_PARM_FLASH_BRACKETING,         cam_flash_bracketing_t,      1);
