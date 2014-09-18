@@ -673,8 +673,8 @@ public:
     int32_t updateMTFInfo(const int32_t lenPos);
     uint8_t m_currNumBufMTF;
     int32_t  updateCurrentFocusPosition(int32_t pos);
-    bool isDisplayFrameNeeded() { return m_bDisplayFrame; };
-    int32_t setDisplayFrame(bool enabled) {m_bDisplayFrame=enabled; return 0;};
+    bool isDisplayFrameNeeded();
+    int32_t setDisplayFrame(bool enabled);
     bool isAdvCamFeaturesEnabled() {return isUbiFocusEnabled() ||
             isChromaFlashEnabled() || isOptiZoomEnabled() || isHDREnabled() ||
             isfssrEnabled() || isMultiTouchFocusEnabled();}
@@ -937,6 +937,7 @@ private:
     bool m_bHfrMode;
     int32_t mHfrMode;
     bool m_bDisplayFrame;
+    uint32_t m_nDelayDisplayFrame;
     bool m_bAeBracketingEnabled;
     int32_t mFlashValue;
     int32_t mFlashDaemonValue;
