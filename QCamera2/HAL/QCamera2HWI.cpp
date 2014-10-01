@@ -3012,8 +3012,6 @@ int QCamera2HardwareInterface::cancelPicture()
     //stop post processor
     m_postprocessor.stop();
 
-    mParameters.setDisplayFrame(TRUE);
-
     if ( mParameters.isHDREnabled() || mParameters.isAEBracketEnabled()) {
         mParameters.stopAEBracket();
     }
@@ -3058,6 +3056,9 @@ int QCamera2HardwareInterface::cancelPicture()
     if (mParameters.isMultiTouchFocusSelected()) {
         mParameters.resetMultiTouchFocusParam();
     }
+
+    mParameters.setDisplayFrame(TRUE);
+
     return NO_ERROR;
 }
 
