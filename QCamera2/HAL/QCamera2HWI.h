@@ -445,6 +445,7 @@ private:
     bool removeSizeFromList(cam_dimension_t* size_list,
                             uint8_t length,
                             cam_dimension_t size);
+    int32_t unconfigureAdvancedCapture();
     int32_t configureAdvancedCapture();
     int32_t configureAFBracketing(bool enable = true);
     int32_t configureMTFBracketing(bool enable = true);
@@ -647,6 +648,7 @@ private:
     int32_t mOutputCount;
     bool mPreviewFrameSkipValid;
     cam_frame_idx_range_t mPreviewFrameSkipIdxRange;
+    bool mAdvancedCaptureConfigured;
 };
 
 }; // namespace qcamera
