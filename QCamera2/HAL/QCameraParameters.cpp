@@ -704,7 +704,6 @@ QCameraParameters::QCameraParameters()
       m_bHfrMode(false),
       mHfrMode(CAM_HFR_MODE_OFF),
       m_bDisplayFrame(true),
-      m_nDelayDisplayFrame(0),
       m_bAeBracketingEnabled(false),
       mFlashValue(CAM_FLASH_MODE_OFF),
       mFlashDaemonValue(CAM_FLASH_MODE_OFF),
@@ -2760,44 +2759,6 @@ int32_t QCameraParameters::setFlash(const QCameraParameters& params)
     }
     return NO_ERROR;
 }
-
-/*===========================================================================
- * FUNCTION   : isDisplayFrameNeeded
- *
- * DESCRIPTION: checks whether current preview frame needs to be displayed
- *
- * PARAMETERS :
- *
- * RETURN     : true/false
- *==========================================================================*/
-bool QCameraParameters::isDisplayFrameNeeded()
-{
-    if (m_nDelayDisplayFrame) {
-        m_nDelayDisplayFrame--;
-    }
-
-    return m_bDisplayFrame && !m_nDelayDisplayFrame;
-};
-
-/*===========================================================================
- * FUNCTION   : setDisplayFrame
- *
- * DESCRIPTION: sets whether preview frames needs to be displayed
- *
- * PARAMETERS :
- *   @enabled  : true/false
- *
- * RETURN     : NO_ERROR  -- success
- *              none-zero failure code
- *==========================================================================*/
-int32_t QCameraParameters::setDisplayFrame(bool enabled)
-{
-    m_bDisplayFrame = enabled;
-    if (enabled) {
-        m_nDelayDisplayFrame = 3;
-    }
-    return NO_ERROR;
-};
 
 /*===========================================================================
  * FUNCTION   : setAecLock
