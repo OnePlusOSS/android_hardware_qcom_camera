@@ -448,7 +448,7 @@ private:
     int32_t configureAdvancedCapture();
     int32_t configureAFBracketing(bool enable = true);
     int32_t configureMTFBracketing(bool enable = true);
-    int32_t configureFlashBracketing();
+    int32_t configureFlashBracketing(bool enable = true);
     int32_t startAdvancedCapture(QCameraPicChannel *pChannel);
     int32_t configureZSLHDRBracketing();
     int32_t startZslAdvancedCapture(QCameraPicChannel *pChannel);
@@ -459,6 +459,8 @@ private:
     inline uint32_t getOutputImageCount() {return mOutputCount;}
     bool processUFDumps(qcamera_jpeg_evt_payload_t *evt);
     bool processMTFDumps(qcamera_jpeg_evt_payload_t *evt);
+    void captureDone();
+
     static void copyList(cam_dimension_t* src_list,
                    cam_dimension_t* dst_list, uint8_t len);
     static void camEvtHandle(uint32_t camera_handle,
