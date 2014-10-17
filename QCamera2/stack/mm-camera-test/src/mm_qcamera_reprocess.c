@@ -39,7 +39,7 @@ static void mm_app_reprocess_notify_cb(mm_camera_super_buf_t *bufs,
     mm_camera_stream_t *m_stream = NULL;
     mm_camera_buf_def_t *m_frame = NULL;
     mm_camera_super_buf_t *src_frame;
-    int i = 0;
+    uint32_t i = 0;
     int rc = 0;
 
     if (!bufs) {
@@ -359,7 +359,7 @@ int mm_app_do_reprocess(mm_camera_test_obj_t *test_obj,
 
 void mm_app_release_ppinput(void *data, void *user_data)
 {
-    int i = 0;
+    uint32_t i = 0;
     mm_camera_super_buf_t *recvd_frame  = ( mm_camera_super_buf_t * ) data;
     mm_camera_test_obj_t *pme = (mm_camera_test_obj_t *)user_data;
 
