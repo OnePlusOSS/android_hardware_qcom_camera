@@ -296,7 +296,7 @@ static int32_t mm_jpeg_intf_realloc_work_buffer(uint32_t client_hdl,
     uint32_t alloc)
 {
   int32_t rc = 0;
-  int i = 0;
+  size_t i = 0;
 
   CDBG_HIGH("%s:%d] alloc=%d", __func__, __LINE__, alloc);
 
@@ -310,13 +310,13 @@ static int32_t mm_jpeg_intf_realloc_work_buffer(uint32_t client_hdl,
     }
     g_jpeg_obj->work_buf_cnt = 0;
   } else {
-    int initial_workbufs_cnt = 1;
+    size_t initial_workbufs_cnt = 1;
     uint32_t work_buf_size;
     work_buf_size = CEILING64(g_jpeg_obj->max_pic_w) *
-      CEILING64(g_jpeg_obj->max_pic_h) * 1.5;
+      CEILING64(g_jpeg_obj->max_pic_h) * 3U / 2U;
     for (i = 0; i < initial_workbufs_cnt; i++) {
       g_jpeg_obj->ionBuffer[i].size = CEILING32(work_buf_size);
-      CDBG_HIGH("Max picture size %d x %d, WorkBufSize = %ld",
+      CDBG_HIGH("Max picture size %d x %d, WorkBufSize = %zu",
           g_jpeg_obj->max_pic_w, g_jpeg_obj->max_pic_h, g_jpeg_obj->ionBuffer[i].size);
 
       g_jpeg_obj->ionBuffer[i].addr = (uint8_t *)buffer_allocate(&g_jpeg_obj->ionBuffer[i], 1);
@@ -328,7 +328,7 @@ static int32_t mm_jpeg_intf_realloc_work_buffer(uint32_t client_hdl,
         return -1;
       }
     }
-    g_jpeg_obj->work_buf_cnt = i;
+    g_jpeg_obj->work_buf_cnt = (uint32_t) i;
   }
   return rc;
 }
@@ -362,7 +362,7 @@ uint32_t jpeg_open(mm_jpeg_ops_t *ops, mm_dimension picture_size)
                       0x10 for mm-camera-interface
                       0x100 for mm-jpeg-interface  */
   property_get("persist.camera.hal.debug.mask", prop, "268435463"); // 0x10000007=268435463
-  temp = atoi(prop);
+  temp = (uint32_t)atoi(prop);
   log_level = ((temp >> 28) & 0xF);
   debug_mask = (temp & HAL_DEBUG_MASK_MM_JPEG_INTERFACE);
   if (debug_mask > 0)

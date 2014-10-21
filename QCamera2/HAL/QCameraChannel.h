@@ -68,8 +68,10 @@ public:
     int32_t config();
     QCameraStream *getStreamByHandle(uint32_t streamHandle);
     uint32_t getMyHandle() const {return m_handle;};
-    uint8_t getNumOfStreams() const {return mStreams.size();};
-    QCameraStream *getStreamByIndex(uint8_t index);
+    uint32_t getNumOfStreams() const {
+        return (uint32_t) mStreams.size();
+    }
+    QCameraStream *getStreamByIndex(uint32_t index);
     QCameraStream *getStreamByServerID(uint32_t serverID);
     int32_t UpdateStreamBasedParameters(QCameraParameters &param);
     void deleteChannel();
@@ -122,7 +124,7 @@ public:
                                        cam_pp_feature_config_t &config,
                                        QCameraChannel *pSrcChannel,
                                        uint8_t minStreamBufNum,
-                                       uint32_t burstNum,
+                                       uint8_t burstNum,
                                        cam_padding_info_t *paddingInfo,
                                        QCameraParameters &param,
                                        bool contStream,
@@ -130,7 +132,7 @@ public:
     // online reprocess
     int32_t doReprocess(mm_camera_super_buf_t *frame);
     // offline reprocess
-    int32_t doReprocess(int buf_fd, uint32_t buf_length, int32_t &ret_val);
+    int32_t doReprocess(int buf_fd, size_t buf_length, int32_t &ret_val);
     int32_t doReprocessOffline(mm_camera_super_buf_t *frame);
     int32_t stop();
     QCameraChannel *getSourceChannel() { return m_pSrcChannel; }
@@ -141,7 +143,7 @@ private:
     typedef struct {
         QCameraStream *stream;
         cam_mapping_buf_type type;
-        int index;
+        uint32_t index;
     } OfflineBuffer;
 
     uint32_t mSrcStreamHandles[MAX_STREAM_NUM_IN_BUNDLE];

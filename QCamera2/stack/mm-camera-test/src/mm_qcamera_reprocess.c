@@ -47,7 +47,7 @@ static void mm_app_reprocess_notify_cb(mm_camera_super_buf_t *bufs,
         return;
     }
     frame = bufs->bufs[0];
-    CDBG_ERROR("%s: BEGIN - length=%d, frame idx = %d\n",
+    CDBG_ERROR("%s: BEGIN - length=%zu, frame idx = %d\n",
          __func__, frame->frame_len, frame->frame_idx);
     /* find channel */
     for (i = 0; i < MM_CHANNEL_TYPE_MAX; i++) {
@@ -291,7 +291,7 @@ int mm_app_stop_reprocess(mm_camera_test_obj_t *test_obj)
 
 int mm_app_do_reprocess(mm_camera_test_obj_t *test_obj,
                         mm_camera_buf_def_t *frame,
-                        uint8_t meta_idx,
+                        uint32_t meta_idx,
                         mm_camera_super_buf_t *super_buf,
                         mm_camera_stream_t *src_meta)
 {
