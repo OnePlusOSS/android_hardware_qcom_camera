@@ -6069,7 +6069,7 @@ int32_t QCameraParameters::setCDSMode(const QCameraParameters& params)
         }
     } else {
         memset(prop, 0, sizeof(prop));
-        property_get("persist.camera.CDS", prop, CDS_MODE_AUTO);
+        property_get("persist.camera.CDS", prop, CDS_MODE_OFF);
         cds_mode_str = prop;
     }
 
