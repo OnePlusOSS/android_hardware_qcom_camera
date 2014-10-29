@@ -22,6 +22,10 @@ ifeq ($(call is-board-platform-in-list,msm8974 msm8916 msm8226 msm8610),true)
 endif
 
 LOCAL_CFLAGS += -D_ANDROID_
+ifneq ($(call is-platform-sdk-version-at-least,20),true)
+LOCAL_CFLAGS += -DUSE_KK_CODE
+endif
+
 LOCAL_COPY_HEADERS_TO := mm-camera-interface
 LOCAL_COPY_HEADERS += ../common/cam_intf.h
 LOCAL_COPY_HEADERS += ../common/cam_types.h
