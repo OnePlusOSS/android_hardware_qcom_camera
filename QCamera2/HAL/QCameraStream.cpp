@@ -98,8 +98,8 @@ int32_t QCameraStream::get_bufs_deffered(
         void *user_data)
 {
     QCameraStream *stream = reinterpret_cast<QCameraStream *>(user_data);
-    if (!stream) {
-        ALOGE("getBufs invalid stream pointer");
+    if (!stream || !stream->mRegFlags || !stream->mBufDefs) {
+        ALOGE("getBufs invalid stream pointer or mRegFlags/mBufDefs==NULL");
         return NO_MEMORY;
     }
 
@@ -232,6 +232,7 @@ QCameraStream::QCameraStream(QCameraAllocator &allocator,
         mStreamInfo(NULL),
         mNumBufs(0),
         mNumBufsNeedAlloc(0),
+        mRegFlags(NULL),
         mDataCB(NULL),
         mUserData(NULL),
         mDataQ(releaseFrameData, this),
@@ -1131,7 +1132,7 @@ int32_t QCameraStream::releaseBuffs()
         mBufDefs = NULL;
         memset(&mFrameLenOffset, 0, sizeof(mFrameLenOffset));
     }
-    if ( !mStreamBufsAcquired ) {
+    if ( !mStreamBufsAcquired && mStreamBufs != NULL) {
         mStreamBufs->deallocate();
         delete mStreamBufs;
     }
