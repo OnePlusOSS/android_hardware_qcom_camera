@@ -6303,8 +6303,7 @@ bool QCamera2HardwareInterface::needReprocess()
     feature_mask = gCamCapability[mCameraId]->qcom_supported_feature_mask;
     required_mask = gCamCapability[mCameraId]->min_required_pp_mask;
     if (((feature_mask & CAM_QCOM_FEATURE_CPP) > 0) &&
-        (getJpegRotation() > 0) &&
-        (mParameters.getRecordingHintValue() == false)) {
+        (getJpegRotation() > 0)) {
             // current rotation is not zero, and pp has the capability to process rotation
             CDBG_HIGH("%s: need to do reprocess for rotation=%d", __func__, getJpegRotation());
             pthread_mutex_unlock(&m_parm_lock);
@@ -6328,7 +6327,7 @@ bool QCamera2HardwareInterface::needReprocess()
             return true;
         }
     } else {
-        if (required_mask & CAM_QCOM_FEATURE_CPP) {
+        if (feature_mask & CAM_QCOM_FEATURE_CPP) {
             CDBG_HIGH("%s: Need CPP in non-ZSL mode", __func__);
             pthread_mutex_unlock(&m_parm_lock);
             return true;
