@@ -6337,7 +6337,7 @@ bool QCamera2HardwareInterface::needReprocess()
             return true;
         }
     } else {
-        if (feature_mask & CAM_QCOM_FEATURE_CPP) {
+        if (required_mask & CAM_QCOM_FEATURE_CPP) {
             CDBG_HIGH("%s: Need CPP in non-ZSL mode", __func__);
             pthread_mutex_unlock(&m_parm_lock);
             return true;
