@@ -17,6 +17,9 @@ LOCAL_CFLAGS += -include mm_jpeg_dbg.h
 ifeq ($(strip $(TARGET_USES_ION)),true)
 LOCAL_CFLAGS += -DUSE_ION
 endif
+ifneq ($(call is-platform-sdk-version-at-least,20),true)
+LOCAL_CFLAGS += -DUSE_KK_CODE
+endif
 
 OMX_HEADER_DIR := frameworks/native/include/media/openmax
 OMX_CORE_DIR := hardware/qcom/camera/mm-image-codec
