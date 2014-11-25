@@ -879,10 +879,6 @@ void QCamera2HardwareInterface::snapshot_channel_cb_routine(mm_camera_super_buf_
     }
 
     QCameraChannel *pChannel = pme->m_channels[QCAMERA_CH_TYPE_SNAPSHOT];
-    if (pChannel == NULL) {
-        //for 4k2k recording use video channel since snapshot channel doesnt exist.
-        pChannel = pme->m_channels[QCAMERA_CH_TYPE_VIDEO];
-    }
     if (pChannel == NULL ||
         pChannel->getMyHandle() != super_frame->ch_id) {
         ALOGE("%s: Snapshot channel doesn't exist, return here", __func__);

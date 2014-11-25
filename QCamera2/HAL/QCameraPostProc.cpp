@@ -1422,9 +1422,7 @@ int32_t QCameraPostProcessor::queryStreams(QCameraStream **main,
                 pChannel->getStreamByHandle(frame->bufs[i]->stream_id);
         if (pStream != NULL) {
             if (pStream->isTypeOf(CAM_STREAM_TYPE_SNAPSHOT) ||
-                pStream->isOrignalTypeOf(CAM_STREAM_TYPE_SNAPSHOT) ||
-                pStream->isTypeOf(CAM_STREAM_TYPE_VIDEO) ||
-                pStream->isOrignalTypeOf(CAM_STREAM_TYPE_VIDEO)) {
+                pStream->isOrignalTypeOf(CAM_STREAM_TYPE_SNAPSHOT)) {
                 *main= pStream;
                 *main_image = frame->bufs[i];
             } else if (pStream->isTypeOf(CAM_STREAM_TYPE_PREVIEW) ||
