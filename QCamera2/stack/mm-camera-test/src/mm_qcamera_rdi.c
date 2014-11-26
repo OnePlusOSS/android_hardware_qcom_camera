@@ -41,8 +41,13 @@ static void mm_app_rdi_dump_frame(mm_camera_buf_def_t *frame,
     int file_fd;
     int i;
     if (frame != NULL) {
+#ifdef USE_KK_CODE
         snprintf(file_name, sizeof(file_name), "/data/%s_%03u.%s", name,
                 frame_idx, ext);
+#else
+        snprintf(file_name, sizeof(file_name), "/data/misc/camera/%s_%03u.%s", name,
+                frame_idx, ext);
+#endif
         file_fd = open(file_name, O_RDWR | O_CREAT, 0777);
         if (file_fd < 0) {
             CDBG_ERROR("%s: cannot open file %s \n", __func__, file_name);
