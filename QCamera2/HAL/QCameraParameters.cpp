@@ -41,6 +41,7 @@
 #include "QCameraParameters.h"
 
 #define ASPECT_TOLERANCE 0.001
+#define ISP_SEC_SCALAR_MAX_LIMIT 2048*1536
 
 namespace qcamera {
 // Parameter keys to communicate between camera application and driver.
@@ -7649,6 +7650,55 @@ int32_t QCameraParameters::getStreamDimension(cam_stream_type_t streamType,
         //For CTS testPreviewPictureSizesCombination
         int cur_pic_width, cur_pic_height;
         CameraParameters::getPictureSize(&cur_pic_width, &cur_pic_height);
+#ifndef USE_KK_CODE
+        {
+            int minDimension;
+            if((dim.width*dim.height) > (cur_pic_width*cur_pic_height)) {
+                minDimension = (cur_pic_width * cur_pic_height);
+            } else {
+                minDimension = (dim.width*dim.height);
+            }
+
+            double exp_aspectRatio = (double)cur_pic_width / (double)cur_pic_height;
+
+            if (minDimension >= ISP_SEC_SCALAR_MAX_LIMIT) {
+                size_t i;
+                double preview_aspectRatio = 0.0f;
+                double preview_height = 0.0f;
+                double preview_width = 0.0f;
+                for (i = 0; i < m_pCapability->preview_sizes_tbl_cnt; ++i) {
+                    if ((m_pCapability->preview_sizes_tbl[i].width *
+                            m_pCapability->preview_sizes_tbl[i].height)
+                            < ISP_SEC_SCALAR_MAX_LIMIT) {
+                        preview_height = (double)m_pCapability->preview_sizes_tbl[i].height;
+                        preview_width = (double)m_pCapability->preview_sizes_tbl[i].width;
+                        preview_aspectRatio = preview_width / preview_height;
+                        if (fabs(preview_aspectRatio - exp_aspectRatio) <= ASPECT_TOLERANCE) {
+                            dim.width = m_pCapability->preview_sizes_tbl[i].width;
+                            dim.height = m_pCapability->preview_sizes_tbl[i].height;
+                            break;
+                        }
+                    }
+                }
+
+                if (i == m_pCapability->preview_sizes_tbl_cnt) {
+                    // Fallback to next supported preview size less than scalar limitation
+                    for (i = 0; i < m_pCapability->preview_sizes_tbl_cnt; ++i) {
+                        if ((m_pCapability->preview_sizes_tbl[i].width *
+                                m_pCapability->preview_sizes_tbl[i].height)
+                                <= ISP_SEC_SCALAR_MAX_LIMIT) {
+                            dim.width = m_pCapability->preview_sizes_tbl[i].width;
+                            dim.height = m_pCapability->preview_sizes_tbl[i].height;
+                            break;
+                        }
+                    }
+                    break;
+                }
+                break;
+            }
+        }
+#endif
+
         if ((dim.width > cur_pic_width && dim.height < cur_pic_height)
                 || (dim.width < cur_pic_width && dim.height > cur_pic_height)) {
             size_t k;
