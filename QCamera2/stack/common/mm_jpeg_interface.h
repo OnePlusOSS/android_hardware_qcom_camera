@@ -300,9 +300,6 @@ typedef struct {
   /* destroy session */
   int (*destroy_session)(uint32_t session_id);
 
-  /* alloc/free work buffer */
-  int (*realloc_work_buffer)(uint32_t client_hdl, uint32_t alloc);
-
   /* close a jpeg client -- sync call */
   int (*close) (uint32_t clientHdl);
 } mm_jpeg_ops_t;
