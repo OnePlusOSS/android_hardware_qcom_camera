@@ -176,6 +176,8 @@ private:
     QCamera2HardwareInterface *m_parent;
     jpeg_encode_callback_t     mJpegCB;
     void *                     mJpegUserData;
+    mm_jpeg_ops_t              mJpegHandle;
+    uint32_t                   mJpegClientHandle;
     uint32_t                   mJpegSessionId;
 
     void *                     m_pJpegOutputMem[MM_JPEG_MAX_BUF];
@@ -205,8 +207,6 @@ private:
     QCameraStream *m_reprocStream;
 
 public:
-    mm_jpeg_ops_t   mJpegHandle;
-    uint32_t        mJpegClientHandle;
     cam_dimension_t m_dst_dim;
     cam_dimension_t m_src_dim;
 };

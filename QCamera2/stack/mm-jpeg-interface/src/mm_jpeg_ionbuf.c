@@ -125,10 +125,6 @@ int buffer_deallocate(buffer_t *p_buffer)
   ioctl(p_buffer->ion_fd, ION_IOC_FREE, &lhandle_data);
 
   close(p_buffer->ion_fd);
-
-  p_buffer->addr = NULL;
-  p_buffer->ion_fd = -1;
-  p_buffer->p_pmem_fd = -1;
   return lrc;
 }
 
