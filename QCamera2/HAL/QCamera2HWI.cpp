@@ -1090,6 +1090,7 @@ QCamera2HardwareInterface::~QCamera2HardwareInterface()
     mDefferedWorkThread.exit();
 
     closeCamera();
+    m_stateMachine.releaseThread();
     pthread_mutex_destroy(&m_lock);
     pthread_cond_destroy(&m_cond);
     pthread_mutex_destroy(&m_evtLock);
