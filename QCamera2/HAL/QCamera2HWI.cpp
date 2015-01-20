@@ -1871,7 +1871,6 @@ QCameraHeapMemory *QCamera2HardwareInterface::allocateStreamInfoBuf(
         }
         break;
     case CAM_STREAM_TYPE_VIDEO:
-        streamInfo->useAVTimer = mParameters.isAVTimerEnabled();
         streamInfo->dis_enable = mParameters.isDISEnabled();
         if (mParameters.isSeeMoreEnabled()) {
             streamInfo->pp_config.feature_mask |= CAM_QCOM_FEATURE_LLVD;
