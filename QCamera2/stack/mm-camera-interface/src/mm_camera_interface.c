@@ -1469,6 +1469,7 @@ uint8_t get_num_of_cameras()
     uint32_t temp;
     uint32_t log_level;
     uint32_t debug_mask;
+    int8_t fixed_num_cameras = 0;
 
     /*  Higher 4 bits : Value of Debug log level (Default level is 1 to print all CDBG_HIGH)
         Lower 28 bits : Control mode for sub module logging(Only 3 sub modules in HAL)
@@ -1610,6 +1611,22 @@ uint8_t get_num_of_cameras()
         close(dev_fd);
         dev_fd = 0;
     }
+
+    /* In L AOSP MAX camera defined as 4, compared to 2 in KK
+     * Due to that and multimode architecture, camera switching on 8x26 target
+     * will fail on KK-based camera as there are non-zero specific profile
+     * exists in dtsi file. These profiles are needed for JB-based camera.
+     * To support JB and KK camera projects with common kernel, we have
+     * introduced a setprop where user can set max number of cameras.
+     * This'll resolve the issue for accessing incorrect camera profile.
+    */
+    property_get("persist.camera.num_cameras",prop,"0");
+    fixed_num_cameras = atoi(prop);
+    if ( (fixed_num_cameras > 0)&& (num_cameras > fixed_num_cameras)) {
+        num_cameras = fixed_num_cameras;
+        CDBG_HIGH("%s: restricted num of cameras to: %d\n",__func__, num_cameras);
+    }
+
     g_cam_ctrl.num_cam = num_cameras;
 
     get_sensor_info();
