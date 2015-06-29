@@ -3309,26 +3309,14 @@ int QCamera2HardwareInterface::takeLiveSnapshot_internal()
     getOrientation();
     QCameraChannel *pChannel = NULL;
 
-    cam_dimension_t videoSize;
-    mParameters.getVideoSize(&videoSize.width, &videoSize.height);
-
-    if (is4k2kResolution(&videoSize)) {
-        pChannel = m_channels[QCAMERA_CH_TYPE_VIDEO];
-    } else {
-        pChannel = m_channels[QCAMERA_CH_TYPE_SNAPSHOT];
-    }
-
     // start post processor
-    rc = m_postprocessor.start(pChannel);
+    rc = m_postprocessor.start(m_channels[QCAMERA_CH_TYPE_SNAPSHOT]);
     if (NO_ERROR != rc) {
         ALOGE("%s: Post-processor start failed %d", __func__, rc);
         goto end;
     }
 
-    if (is4k2kResolution(&videoSize)) {
-        return ((QCameraVideoChannel*)pChannel)->takePicture(1);
-    }
-
+    pChannel = m_channels[QCAMERA_CH_TYPE_SNAPSHOT];
     if (NULL == pChannel) {
         ALOGE("%s: Snapshot channel not initialized", __func__);
         rc = NO_INIT;
@@ -4604,37 +4592,6 @@ int32_t QCamera2HardwareInterface::addPreviewChannel()
     }
 
     m_channels[QCAMERA_CH_TYPE_PREVIEW] = pChannel;
-
-    bool recordingHint = mParameters.getRecordingHintValue();
-    cam_dimension_t videoSize;
-    mParameters.getVideoSize(&videoSize.width, &videoSize.height);
-    if (recordingHint && is4k2kResolution(&videoSize)) {
-        // Find and try to link a metadata stream from preview channel
-        QCameraChannel *pMetaChannel = NULL;
-        QCameraStream *pMetaStream = NULL;
-        QCameraChannel *pVideoChannel = m_channels[QCAMERA_CH_TYPE_VIDEO];
-
-        if (m_channels[QCAMERA_CH_TYPE_PREVIEW] != NULL) {
-            pMetaChannel = m_channels[QCAMERA_CH_TYPE_PREVIEW];
-            uint32_t streamNum = pMetaChannel->getNumOfStreams();
-            QCameraStream *pStream = NULL;
-            for (uint32_t i = 0 ; i < streamNum ; i++ ) {
-                pStream = pMetaChannel->getStreamByIndex(i);
-                if ((NULL != pStream) &&
-                        (CAM_STREAM_TYPE_METADATA == pStream->getMyType())) {
-                    pMetaStream = pStream;
-                    break;
-                }
-            }
-        }
-
-        if ((NULL != pMetaChannel) && (NULL != pMetaStream)) {
-            rc = pVideoChannel->linkStream(pMetaChannel, pMetaStream);
-            if (NO_ERROR != rc) {
-                ALOGE("%s : Metadata stream link failed %d", __func__, rc);
-            }
-        }
-    }
     return rc;
 }
 
@@ -4667,22 +4624,8 @@ int32_t QCamera2HardwareInterface::addVideoChannel()
         return NO_MEMORY;
     }
 
-    cam_dimension_t videoSize;
-    mParameters.getVideoSize(&videoSize.width, &videoSize.height);
-    if (!is4k2kResolution(&videoSize)) {
-        // preview only channel, don't need bundle attr and cb
-        rc = pChannel->init(NULL, NULL, NULL);
-    } else {
-        mm_camera_channel_attr_t attr;
-        memset(&attr, 0, sizeof(mm_camera_channel_attr_t));
-        attr.notify_mode = MM_CAMERA_SUPER_BUF_NOTIFY_BURST;
-        attr.look_back = mParameters.getZSLBackLookCount();
-        attr.post_frame_skip = mParameters.getZSLBurstInterval();
-        attr.water_mark = mParameters.getZSLQueueDepth();
-        attr.max_unmatched_frames = mParameters.getMaxUnmatchedFramesInQueue();
-        rc = pChannel->init(&attr, snapshot_channel_cb_routine, this);
-    }
-
+    // preview only channel, don't need bundle attr and cb
+    rc = pChannel->init(NULL, NULL, NULL);
     if (rc != 0) {
         ALOGE("%s: init video channel failed, ret = %d", __func__, rc);
         delete pChannel;
