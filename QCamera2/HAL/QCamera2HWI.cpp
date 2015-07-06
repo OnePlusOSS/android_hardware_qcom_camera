@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2014, The Linux Foundataion. All rights reserved.
+/* Copyright (c) 2012-2015, The Linux Foundataion. All rights reserved.
 *
 * Redistribution and use in source and binary forms, with or without
 * modification, are permitted provided that the following conditions are
@@ -4186,6 +4186,7 @@ int32_t QCamera2HardwareInterface::processPrepSnapshotDoneEvent(
  *==========================================================================*/
 int32_t QCamera2HardwareInterface::processASDUpdate(cam_auto_scene_t scene)
 {
+#ifndef VANILLA_HAL
     //set ASD parameter
     mParameters.set(QCameraParameters::KEY_SELECTED_AUTO_SCENE, mParameters.getASDStateString(scene));
 
@@ -4208,7 +4209,6 @@ int32_t QCamera2HardwareInterface::processASDUpdate(cam_auto_scene_t scene)
         return UNKNOWN_ERROR;
     }
 
-#ifndef VANILLA_HAL
     pASDData[0] = CAMERA_META_DATA_ASD;
     pASDData[1] = (int)data_len;
     pASDData[2] = scene;
@@ -5561,6 +5561,22 @@ int32_t QCamera2HardwareInterface::preparePreview()
     } else {
         bool recordingHint = mParameters.getRecordingHintValue();
         if(recordingHint) {
+            //stop face detection,longshot,etc if turned ON in Camera mode
+            int32_t arg; //dummy arg
+#ifndef VANILLA_HAL
+            if (isLongshotEnabled()) {
+                sendCommand(CAMERA_CMD_LONGSHOT_OFF, arg, arg);
+            }
+#endif
+            if (mParameters.isFaceDetectionEnabled()) {
+                sendCommand(CAMERA_CMD_STOP_FACE_DETECTION, arg, arg);
+            }
+#ifndef VANILLA_HAL
+            if (mParameters.isHistogramEnabled()) {
+                sendCommand(CAMERA_CMD_HISTOGRAM_OFF, arg, arg);
+            }
+#endif
+
             cam_dimension_t videoSize;
             mParameters.getVideoSize(&videoSize.width, &videoSize.height);
             if (!is4k2kResolution(&videoSize)) {
@@ -5699,9 +5715,11 @@ int32_t QCamera2HardwareInterface::processFaceDetectionResult(cam_face_detection
     qcamera_face_detect_type_t fd_type = fd_data->fd_type;
     if ((NULL == mDataCb) ||
         (fd_type == QCAMERA_FD_PREVIEW && (!msgTypeEnabled(CAMERA_MSG_PREVIEW_METADATA) ||
-        (!needPreviewFDCallback(fd_data->num_faces_detected))))
+        (!needPreviewFDCallback(fd_data->num_faces_detected)))) ||
 #ifndef VANILLA_HAL
-        || (fd_type == QCAMERA_FD_SNAPSHOT && !msgTypeEnabled(CAMERA_MSG_META_DATA))
+        (fd_type == QCAMERA_FD_SNAPSHOT && !msgTypeEnabled(CAMERA_MSG_META_DATA))
+#else
+        (fd_type == QCAMERA_FD_SNAPSHOT)
 #endif
         ) {
         CDBG_HIGH("%s: metadata msgtype not enabled, no ops here", __func__);
@@ -5725,6 +5743,7 @@ int32_t QCamera2HardwareInterface::processFaceDetectionResult(cam_face_detection
         faceResultSize = sizeof(camera_frame_metadata_t);
         faceResultSize += sizeof(camera_face_t) * MAX_ROI;
     }else if(fd_type == QCAMERA_FD_SNAPSHOT){
+#ifndef VANILLA_HAL
         // fd for snapshot frames
         //check if face is detected in this frame
         if(fd_data->num_faces_detected > 0){
@@ -5734,6 +5753,7 @@ int32_t QCamera2HardwareInterface::processFaceDetectionResult(cam_face_detection
             //no face
             data_len = 0;
         }
+#endif
         faceResultSize = 1 *sizeof(int)    //meta data type
                        + 1 *sizeof(int)    // meta data len
                        + data_len;         //data
@@ -5779,8 +5799,9 @@ int32_t QCamera2HardwareInterface::processFaceDetectionResult(cam_face_detection
             }
             return rc;
         }
-#endif
+
         faceData = pFaceResult + 2 *sizeof(int); //skip two int length
+#endif
     }
 
     camera_frame_metadata_t *roiData = (camera_frame_metadata_t * ) faceData;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2015, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -474,7 +474,9 @@ const QCameraParameters::QCameraMap<cam_focus_mode_type>
     { FOCUS_MODE_EDOF,               CAM_FOCUS_MODE_EDOF },
     { FOCUS_MODE_CONTINUOUS_PICTURE, CAM_FOCUS_MODE_CONTINOUS_PICTURE },
     { FOCUS_MODE_CONTINUOUS_VIDEO,   CAM_FOCUS_MODE_CONTINOUS_VIDEO },
+#ifndef VANILLA_HAL
     { FOCUS_MODE_MANUAL_POSITION,    CAM_FOCUS_MODE_MANUAL},
+#endif
 };
 
 const QCameraParameters::QCameraMap<cam_effect_mode_type>
@@ -543,7 +545,9 @@ const QCameraParameters::QCameraMap<cam_wb_mode_type>
     { WHITE_BALANCE_CLOUDY_DAYLIGHT, CAM_WB_MODE_CLOUDY_DAYLIGHT },
     { WHITE_BALANCE_TWILIGHT,        CAM_WB_MODE_TWILIGHT },
     { WHITE_BALANCE_SHADE,           CAM_WB_MODE_SHADE },
+#ifndef VANILLA_HAL
     { WHITE_BALANCE_MANUAL_CCT,      CAM_WB_MODE_CCT},
+#endif
 };
 
 const QCameraParameters::QCameraMap<cam_antibanding_mode_type>
@@ -1959,9 +1963,9 @@ int32_t QCameraParameters::setFocusMode(const QCameraParameters& params)
  *==========================================================================*/
 int32_t  QCameraParameters::setFocusPosition(const QCameraParameters& params)
 {
+#ifndef VANILLA_HAL
     const char *focus_str = params.get(KEY_FOCUS_MODE);
     CDBG_HIGH("%s, current focus mode: %s", __func__, focus_str);
-
     if (focus_str != NULL) {
         if (strcmp(focus_str, FOCUS_MODE_MANUAL_POSITION)) {
             CDBG("%s, dont set focus pos to back-end!", __func__);
@@ -1979,7 +1983,7 @@ int32_t  QCameraParameters::setFocusPosition(const QCameraParameters& params)
             return setFocusPosition(type, pos);
         }
     }
-
+#endif
     return NO_ERROR;
 }
 
@@ -2257,9 +2261,9 @@ int32_t QCameraParameters::setWhiteBalance(const QCameraParameters& params)
  *==========================================================================*/
 int32_t  QCameraParameters::setWBManualCCT(const QCameraParameters& params)
 {
+#ifndef VANILLA_HAL
     const char *wb_str = params.get(KEY_WHITE_BALANCE);
     CDBG_HIGH("%s, current wb mode: %s", __func__, wb_str);
-
     if (wb_str != NULL) {
         if (strcmp(wb_str, WHITE_BALANCE_MANUAL_CCT)) {
             CDBG("%s, dont set cct to back-end.", __func__);
@@ -2275,6 +2279,7 @@ int32_t  QCameraParameters::setWBManualCCT(const QCameraParameters& params)
             return setWBManualCCT(str);
         }
     }
+#endif
 
     return NO_ERROR;
 }
