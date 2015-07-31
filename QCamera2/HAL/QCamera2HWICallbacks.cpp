@@ -542,68 +542,180 @@ void QCamera2HardwareInterface::preview_stream_cb_routine(mm_camera_super_buf_t 
 
     // Handle preview data callback
     if (pme->mDataCb != NULL && pme->msgTypeEnabledWithLock(CAMERA_MSG_PREVIEW_FRAME) > 0) {
-        camera_memory_t *previewMem = NULL;
-        camera_memory_t *data = NULL;
-        size_t previewBufSize;
-        cam_dimension_t preview_dim;
-        cam_format_t previewFmt;
-        stream->getFrameDimension(preview_dim);
-        stream->getFormat(previewFmt);
-
-        /* The preview buffer size in the callback should be (width*height*bytes_per_pixel)
-         * As all preview formats we support, use 12 bits per pixel, buffer size = previewWidth * previewHeight * 3/2.
-         * We need to put a check if some other formats are supported in future. */
-        if ((previewFmt == CAM_FORMAT_YUV_420_NV21) ||
-            (previewFmt == CAM_FORMAT_YUV_420_NV12) ||
-            (previewFmt == CAM_FORMAT_YUV_420_YV12)) {
-            if(previewFmt == CAM_FORMAT_YUV_420_YV12) {
-                previewBufSize = (((size_t)preview_dim.width + 15) / 16) * 16 *
-                            (size_t)preview_dim.height +
-                        (((size_t)preview_dim.width / 2 + 15) / 16) * 16 *
-                            (size_t)preview_dim.height;
-            } else {
-                previewBufSize = (size_t)preview_dim.width *
-                        (size_t)preview_dim.height * 3 / 2;
-            }
-            ssize_t bufSize = memory->getSize(idx);
-            if((BAD_INDEX != bufSize) && (previewBufSize != (size_t)bufSize)) {
-                previewMem = pme->mGetMemory(memory->getFd(idx),
-                        previewBufSize, 1, pme->mCallbackCookie);
-                if (!previewMem || !previewMem->data) {
-                    ALOGE("%s: mGetMemory failed.\n", __func__);
-                } else {
-                    data = previewMem;
-                }
-            } else {
-                data = memory->getMemory(idx, false);
-            }
-        } else {
-            data = memory->getMemory(idx, false);
-            ALOGE("%s: Invalid preview format, buffer size in preview callback may be wrong.",
-                    __func__);
-        }
-        qcamera_callback_argm_t cbArg;
-        memset(&cbArg, 0, sizeof(qcamera_callback_argm_t));
-        cbArg.cb_type = QCAMERA_DATA_CALLBACK;
-        cbArg.msg_type = CAMERA_MSG_PREVIEW_FRAME;
-        cbArg.data = data;
-        if ( previewMem ) {
-            cbArg.user_data = previewMem;
-            cbArg.release_cb = releaseCameraMemory;
-        }
-        cbArg.cookie = pme;
-        int32_t rc = pme->m_cbNotifier.notifyCallback(cbArg);
-        if (rc != NO_ERROR) {
-            ALOGE("%s: fail sending notification", __func__);
-            if (previewMem) {
-                previewMem->release(previewMem);
-            }
+        int32_t rc = pme->sendPreviewCallback(stream, memory, idx);
+        if (NO_ERROR != rc) {
+            ALOGE("%s: Preview callback was not sent succesfully", __func__);
         }
     }
 
     free(super_frame);
     CDBG("[KPI Perf] %s : END", __func__);
     return;
+}
+
+/*===========================================================================
+ * FUNCTION   : sendPreviewCallback
+ *
+ * DESCRIPTION: helper function for triggering preview callbacks
+ *
+ * PARAMETERS :
+ *   @stream    : stream object
+ *   @memory    : Gralloc memory allocator
+ *   @idx       : buffer index
+ *
+ * RETURN     : int32_t type of status
+ *              NO_ERROR  -- success
+ *              none-zero failure code
+ *==========================================================================*/
+int32_t QCamera2HardwareInterface::sendPreviewCallback(QCameraStream *stream,
+        QCameraGrallocMemory *memory, int32_t idx)
+{
+    camera_memory_t *previewMem = NULL;
+    camera_memory_t *data = NULL;
+    camera_memory_t *dataToApp = NULL;
+    size_t previewBufSize = 0;
+    size_t previewBufSizeFromCallback = 0;
+    cam_dimension_t preview_dim;
+    cam_format_t previewFmt;
+    int32_t rc = NO_ERROR;
+    int32_t yStride = 0;
+    int32_t yScanline = 0;
+    int32_t uvStride = 0;
+    int32_t uvScanline = 0;
+    int32_t uStride = 0;
+    int32_t uScanline = 0;
+    int32_t vStride = 0;
+    int32_t vScanline = 0;
+    int32_t yStrideToApp = 0;
+    int32_t uvStrideToApp = 0;
+    int32_t yScanlineToApp = 0;
+    int32_t uvScanlineToApp = 0;
+    int32_t srcOffset = 0;
+    int32_t dstOffset = 0;
+    int32_t srcBaseOffset = 0;
+    int32_t dstBaseOffset = 0;
+    int i;
+
+    if ((NULL == stream) || (NULL == memory)) {
+        ALOGE("%s: Invalid preview callback input", __func__);
+        return BAD_VALUE;
+    }
+
+    cam_stream_info_t *streamInfo =
+            reinterpret_cast<cam_stream_info_t *>(stream->getStreamInfoBuf()->getPtr(0));
+    if (NULL == streamInfo) {
+        ALOGE("%s: Invalid streamInfo", __func__);
+        return BAD_VALUE;
+    }
+
+    stream->getFrameDimension(preview_dim);
+    stream->getFormat(previewFmt);
+
+    /* The preview buffer size in the callback should be
+     * (width*height*bytes_per_pixel). As all preview formats we support,
+     * use 12 bits per pixel, buffer size = previewWidth * previewHeight * 3/2.
+     * We need to put a check if some other formats are supported in future. */
+    if ((previewFmt == CAM_FORMAT_YUV_420_NV21) ||
+        (previewFmt == CAM_FORMAT_YUV_420_NV12) ||
+        (previewFmt == CAM_FORMAT_YUV_420_YV12)) {
+        if(previewFmt == CAM_FORMAT_YUV_420_YV12) {
+            yStride = streamInfo->buf_planes.plane_info.mp[0].stride;
+            yScanline = streamInfo->buf_planes.plane_info.mp[0].scanline;
+            uStride = streamInfo->buf_planes.plane_info.mp[1].stride;
+            uScanline = streamInfo->buf_planes.plane_info.mp[1].scanline;
+            vStride = streamInfo->buf_planes.plane_info.mp[2].stride;
+            vScanline = streamInfo->buf_planes.plane_info.mp[2].scanline;
+
+            previewBufSize = yStride * yScanline + uStride * uScanline + vStride * vScanline;
+            previewBufSizeFromCallback = previewBufSize;
+        } else {
+            yStride = streamInfo->buf_planes.plane_info.mp[0].stride;
+            yScanline = streamInfo->buf_planes.plane_info.mp[0].scanline;
+            uvStride = streamInfo->buf_planes.plane_info.mp[1].stride;
+            uvScanline = streamInfo->buf_planes.plane_info.mp[1].scanline;
+
+            yStrideToApp = preview_dim.width;
+            yScanlineToApp = preview_dim.height;
+            uvStrideToApp = yStrideToApp;
+            uvScanlineToApp = yScanlineToApp / 2;
+
+            previewBufSize = (yStrideToApp * yScanlineToApp) +
+                    (uvStrideToApp * uvScanlineToApp);
+
+            previewBufSizeFromCallback = (yStride * yScanline) +
+                    (uvStride * uvScanline);
+        }
+        if(previewBufSize == previewBufSizeFromCallback) {
+            previewMem = mGetMemory(memory->getFd(idx),
+                       previewBufSize, 1, mCallbackCookie);
+            if (!previewMem || !previewMem->data) {
+                ALOGE("%s: mGetMemory failed.\n", __func__);
+                return NO_MEMORY;
+            } else {
+                data = previewMem;
+            }
+        } else {
+            data = memory->getMemory(idx, false);
+            dataToApp = mGetMemory(-1, previewBufSize, 1, mCallbackCookie);
+            if (!dataToApp || !dataToApp->data) {
+                ALOGE("%s: mGetMemory failed.\n", __func__);
+                return NO_MEMORY;
+            }
+
+            for (i = 0; i < preview_dim.height; i++) {
+                srcOffset = i * yStride;
+                dstOffset = i * yStrideToApp;
+
+                memcpy((unsigned char *) dataToApp->data + dstOffset,
+                        (unsigned char *) data->data + srcOffset, yStrideToApp);
+            }
+
+            srcBaseOffset = yStride * yScanline;
+            dstBaseOffset = yStrideToApp * yScanlineToApp;
+
+            for (i = 0; i < preview_dim.height/2; i++) {
+                srcOffset = i * uvStride + srcBaseOffset;
+                dstOffset = i * uvStrideToApp + dstBaseOffset;
+
+                memcpy((unsigned char *) dataToApp->data + dstOffset,
+                        (unsigned char *) data->data + srcOffset,
+                        yStrideToApp);
+            }
+        }
+    } else {
+        data = memory->getMemory(idx, false);
+        ALOGE("%s: Invalid preview format, buffer size in preview callback may be wrong.",
+                __func__);
+    }
+    qcamera_callback_argm_t cbArg;
+    memset(&cbArg, 0, sizeof(qcamera_callback_argm_t));
+    cbArg.cb_type = QCAMERA_DATA_CALLBACK;
+    cbArg.msg_type = CAMERA_MSG_PREVIEW_FRAME;
+    if (previewBufSize != 0 && previewBufSizeFromCallback != 0 &&
+            previewBufSize == previewBufSizeFromCallback) {
+        cbArg.data = data;
+    } else {
+        cbArg.data = dataToApp;
+    }
+    if ( previewMem ) {
+        cbArg.user_data = previewMem;
+        cbArg.release_cb = releaseCameraMemory;
+    } else if (dataToApp) {
+        cbArg.user_data = dataToApp;
+        cbArg.release_cb = releaseCameraMemory;
+    }
+    cbArg.cookie = this;
+    rc = m_cbNotifier.notifyCallback(cbArg);
+    if (rc != NO_ERROR) {
+        ALOGE("%s: fail sending notification", __func__);
+        if (previewMem) {
+            previewMem->release(previewMem);
+        } else if (dataToApp) {
+            dataToApp->release(dataToApp);
+        }
+    }
+
+    return rc;
 }
 
 /*===========================================================================
