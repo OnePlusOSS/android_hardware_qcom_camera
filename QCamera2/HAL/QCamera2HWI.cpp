@@ -6572,10 +6572,25 @@ QCameraExif *QCamera2HardwareInterface::getExifData()
 
     // add exif entries
     String8 dateTime;
-    rc = mParameters.getExifDateTime(dateTime);
+    String8 subsecTime;
+    rc = mParameters.getExifDateTime(dateTime,subsecTime);
     if(rc == NO_ERROR) {
         exif->addEntry(EXIFTAGID_EXIF_DATE_TIME_ORIGINAL, EXIF_ASCII,
                 (uint32_t)(dateTime.length() + 1), (void *)dateTime.string());
+
+
+        exif->addEntry(EXIFTAGID_EXIF_DATE_TIME_DIGITIZED, EXIF_ASCII,
+                (uint32_t)(dateTime.length() + 1), (void *)dateTime.string());
+
+        exif->addEntry(EXIFTAGID_SUBSEC_TIME, EXIF_ASCII,
+                (uint32_t)(subsecTime.length() + 1), (void *)subsecTime.string());
+
+        exif->addEntry(EXIFTAGID_SUBSEC_TIME_ORIGINAL, EXIF_ASCII,
+                (uint32_t)(subsecTime.length() + 1), (void *)subsecTime.string());
+
+        exif->addEntry(EXIFTAGID_SUBSEC_TIME_DIGITIZED, EXIF_ASCII,
+                (uint32_t)(subsecTime.length() + 1), (void *)subsecTime.string());
+
     } else {
         ALOGE("%s: getExifDateTime failed", __func__);
     }
