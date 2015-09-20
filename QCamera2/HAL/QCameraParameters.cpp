@@ -8188,18 +8188,21 @@ int QCameraParameters::parseGPSCoordinate(const char *coord_str, rat_t* coord)
  * PARAMETERS :
  *   @dateTime : String to store exif date time.
  *               Should be leaved unchanged in case of error.
+ *   @subsecTime : subsecond time
  *
  * RETURN     : int32_t type of status
  *              NO_ERROR  -- success
  *              none-zero failure code
  *==========================================================================*/
-int32_t QCameraParameters::getExifDateTime(String8 &dateTime)
+int32_t QCameraParameters::getExifDateTime(String8 &dateTime, String8 &subsecTime)
 {
     int32_t ret = NO_ERROR;
+    struct timeval tv;
     //get time and date from system
     time_t rawtime = time(NULL);
     if (((time_t) 0) <= rawtime) {
         struct tm *timeinfo = localtime (&rawtime);
+        gettimeofday(&tv, NULL);
         if (NULL != timeinfo) {
             //Write datetime according to EXIF Spec
             //"YYYY:MM:DD HH:MM:SS" (20 chars including \0)
@@ -8207,6 +8210,8 @@ int32_t QCameraParameters::getExifDateTime(String8 &dateTime)
                     timeinfo->tm_year + 1900, timeinfo->tm_mon + 1,
                     timeinfo->tm_mday, timeinfo->tm_hour,
                     timeinfo->tm_min, timeinfo->tm_sec);
+
+            subsecTime = String8::format("%06ld", tv.tv_usec);
         } else {
             ALOGE("%s: localtime() error: %s", __func__, strerror(errno));
             ret = UNKNOWN_ERROR;

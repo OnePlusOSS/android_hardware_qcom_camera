@@ -577,7 +577,7 @@ public:
     int32_t getFlashValue();
     int32_t getSupportedFlashModes();
     int32_t getRedEyeValue();
-    int32_t getExifDateTime(String8 &dateTime);
+    int32_t getExifDateTime(String8 &dateTime, String8 &subsecTime);
     int32_t getExifFocalLength(rat_t *focalLenght);
     uint16_t getExifIsoSpeed();
     int32_t getExifGpsProcessingMethod(char *gpsProcessingMethod, uint32_t &count);
