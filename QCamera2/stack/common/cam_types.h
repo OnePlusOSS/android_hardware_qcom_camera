@@ -41,6 +41,7 @@
 #define AF_DEBUG_DATA_SIZE                (50000)
 #define ASD_DEBUG_DATA_SIZE               (100)
 #define STATS_BUFFER_DEBUG_DATA_SIZE      (75000)
+#define BESTATS_BUFFER_DEBUG_DATA_SIZE    (150000)
 #define BHIST_STATS_DEBUG_DATA_SIZE       (70000)
 #define TUNING_INFO_DEBUG_DATA_SIZE       (4)
 
@@ -1521,6 +1522,12 @@ typedef struct {
 } cam_stats_buffer_exif_debug_t;
 
 typedef struct {
+    int32_t be_stats_buffer_size;
+    int32_t be_config_buffer_size;
+    char bestats_buffer_private_debug_data[BESTATS_BUFFER_DEBUG_DATA_SIZE];
+} cam_bestats_buffer_exif_debug_t;
+
+typedef struct {
     int32_t bhist_stats_buffer_size;
     char bhist_private_debug_data[BHIST_STATS_DEBUG_DATA_SIZE];
 } cam_bhist_buffer_exif_debug_t;
@@ -1728,6 +1735,10 @@ typedef  struct {
     uint8_t is_stats_buffer_exif_debug_valid;
     cam_stats_buffer_exif_debug_t stats_buffer_exif_debug_params;
 
+    /* BE stats buffer exif debug parameters */
+    uint8_t is_bestats_buffer_exif_debug_valid;
+    cam_bestats_buffer_exif_debug_t bestats_buffer_exif_debug_params;
+
     /* Bhist exif debug parameters. */
     uint8_t is_bhist_exif_debug_valid;
     cam_bhist_buffer_exif_debug_t bhist_exif_debug_params;
@@ -1860,6 +1871,7 @@ typedef enum {
     CAM_INTF_META_EXIF_DEBUG_AF,
     CAM_INTF_META_EXIF_DEBUG_ASD,
     CAM_INTF_META_EXIF_DEBUG_STATS,
+    CAM_INTF_META_EXIF_DEBUG_BESTATS,
     CAM_INTF_META_EXIF_DEBUG_BHIST,
     CAM_INTF_META_EXIF_DEBUG_3A_TUNING,
     CAM_INTF_PARM_GET_CHROMATIX,
