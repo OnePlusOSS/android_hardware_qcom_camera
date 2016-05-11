@@ -901,6 +901,7 @@ QCameraParameters::QCameraParameters()
       m_pRelCamSyncBuf(NULL),
       m_bFrameSyncEnabled(false),
       mIsType(IS_TYPE_NONE),
+      mIsTypePreview(IS_TYPE_NONE),
       m_bZslMode(false),
       m_bZslMode_new(false),
       m_bForceZslMode(false),
@@ -12617,6 +12618,21 @@ cam_is_type_t QCameraParameters::getISType()
 }
 
 /*===========================================================================
+* FUNCTION   : getPreviewISType
+*
+* DESCRIPTION: returns IS type for preview
+*
+* PARAMETERS : none
+*
+* RETURN     : IS type
+*
+*==========================================================================*/
+cam_is_type_t QCameraParameters::getPreviewISType()
+{
+    return mIsTypePreview;
+}
+
+/*===========================================================================
  * FUNCTION   : MobicatMask
  *
  * DESCRIPTION: returns mobicat mask
@@ -12771,10 +12787,14 @@ bool QCameraParameters::setStreamConfigure(bool isCapture,
                 // Make default value for IS_TYPE as IS_TYPE_EIS_2_0
                 property_get("persist.camera.is_type", value, "4");
                 mIsType = static_cast<cam_is_type_t>(atoi(value));
+                // Make default value for preview IS_TYPE as IS_TYPE_EIS_2_0
+                property_get("persist.camera.is_type_preview", value, "4");
+                mIsTypePreview = static_cast<cam_is_type_t>(atoi(value));
             } else {
                 mIsType = IS_TYPE_NONE;
+                mIsTypePreview = IS_TYPE_NONE;
             }
-            stream_config_info.is_type = mIsType;
+            stream_config_info.is_type[stream_config_info.num_streams] = mIsType;
             stream_config_info.type[stream_config_info.num_streams] =
                     CAM_STREAM_TYPE_SNAPSHOT;
             getStreamDimension(CAM_STREAM_TYPE_SNAPSHOT,
@@ -12785,7 +12805,7 @@ bool QCameraParameters::setStreamConfigure(bool isCapture,
             getStreamFormat(CAM_STREAM_TYPE_SNAPSHOT,
                         stream_config_info.format[stream_config_info.num_streams]);
             stream_config_info.num_streams++;
-
+            stream_config_info.is_type[stream_config_info.num_streams] = mIsType;
             stream_config_info.type[stream_config_info.num_streams] =
                     CAM_STREAM_TYPE_VIDEO;
             getStreamDimension(CAM_STREAM_TYPE_VIDEO,
@@ -12823,6 +12843,7 @@ bool QCameraParameters::setStreamConfigure(bool isCapture,
                 mStreamPpMask[CAM_STREAM_TYPE_PREVIEW];
         getStreamFormat(CAM_STREAM_TYPE_PREVIEW,
                     stream_config_info.format[stream_config_info.num_streams]);
+        stream_config_info.is_type[stream_config_info.num_streams] = mIsTypePreview;
         stream_config_info.num_streams++;
 
         if (isUBWCEnabled() && getRecordingHintValue() != true) {
@@ -12838,6 +12859,7 @@ bool QCameraParameters::setStreamConfigure(bool isCapture,
                         mStreamPpMask[CAM_STREAM_TYPE_CALLBACK];
                 getStreamFormat(CAM_STREAM_TYPE_CALLBACK,
                         stream_config_info.format[stream_config_info.num_streams]);
+                stream_config_info.is_type[stream_config_info.num_streams] = mIsType;
                 stream_config_info.num_streams++;
             }
         }
@@ -12854,6 +12876,7 @@ bool QCameraParameters::setStreamConfigure(bool isCapture,
                         mStreamPpMask[CAM_STREAM_TYPE_SNAPSHOT];
                 getStreamFormat(CAM_STREAM_TYPE_SNAPSHOT,
                         stream_config_info.format[stream_config_info.num_streams]);
+                stream_config_info.is_type[stream_config_info.num_streams] = mIsType;
                 stream_config_info.num_streams++;
             }
 
@@ -12867,6 +12890,7 @@ bool QCameraParameters::setStreamConfigure(bool isCapture,
                         mStreamPpMask[CAM_STREAM_TYPE_PREVIEW];
                 getStreamFormat(CAM_STREAM_TYPE_PREVIEW,
                         stream_config_info.format[stream_config_info.num_streams]);
+                stream_config_info.is_type[stream_config_info.num_streams] = mIsType;
                 stream_config_info.num_streams++;
             } else {
                 stream_config_info.type[stream_config_info.num_streams] =
@@ -12878,6 +12902,7 @@ bool QCameraParameters::setStreamConfigure(bool isCapture,
                         mStreamPpMask[CAM_STREAM_TYPE_POSTVIEW];
                 getStreamFormat(CAM_STREAM_TYPE_POSTVIEW,
                         stream_config_info.format[stream_config_info.num_streams]);
+                stream_config_info.is_type[stream_config_info.num_streams] = mIsType;
                 stream_config_info.num_streams++;
             }
         } else {
@@ -12891,6 +12916,7 @@ bool QCameraParameters::setStreamConfigure(bool isCapture,
                     mStreamPpMask[CAM_STREAM_TYPE_RAW];
             getStreamFormat(CAM_STREAM_TYPE_RAW,
                     stream_config_info.format[stream_config_info.num_streams]);
+            stream_config_info.is_type[stream_config_info.num_streams] = mIsType;
             stream_config_info.num_streams++;
         }
     }
