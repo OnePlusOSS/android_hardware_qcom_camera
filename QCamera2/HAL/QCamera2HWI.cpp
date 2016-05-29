@@ -757,6 +757,7 @@ void QCamera2HardwareInterface::release_recording_frame(
             struct camera_device *device, const void *opaque)
 {
     ATRACE_CALL();
+    int32_t ret = NO_ERROR;
     QCamera2HardwareInterface *hw =
         reinterpret_cast<QCamera2HardwareInterface *>(device->priv);
     if (!hw) {
@@ -768,9 +769,22 @@ void QCamera2HardwareInterface::release_recording_frame(
         return;
     }
     LOGD("E camera id %d", hw->getCameraId());
+
+    //Close and delete duplicated native handle and FD's.
+    if (hw->mVideoMem != NULL) {
+        ret = hw->mVideoMem->closeNativeHandle(opaque,
+                hw->mStoreMetaDataInFrame > 0);
+        if (ret != NO_ERROR) {
+            LOGE("Invalid video metadata");
+            return;
+        }
+    } else {
+        LOGW("Possible FD leak. Release recording called after stop");
+    }
+
     hw->lockAPI();
     qcamera_api_result_t apiResult;
-    int32_t ret = hw->processAPI(QCAMERA_SM_EVT_RELEASE_RECORIDNG_FRAME, (void *)opaque);
+    ret = hw->processAPI(QCAMERA_SM_EVT_RELEASE_RECORIDNG_FRAME, (void *)opaque);
     if (ret == NO_ERROR) {
         hw->waitAPIResult(QCAMERA_SM_EVT_RELEASE_RECORIDNG_FRAME, &apiResult);
     }
@@ -1661,6 +1675,7 @@ QCamera2HardwareInterface::QCamera2HardwareInterface(uint32_t cameraId)
       mJpegClientHandle(0),
       mJpegHandleOwner(false),
       mMetadataMem(NULL),
+      mVideoMem(NULL),
       mCACDoneReceived(false),
       m_bNeedRestart(false)
 {
@@ -2842,6 +2857,7 @@ QCameraMemory *QCamera2HardwareInterface::allocateStreamBuf(
             }
             videoMemory->setVideoInfo(usage, fmt);
             mem = videoMemory;
+            mVideoMem = videoMemory;
         }
         break;
     case CAM_STREAM_TYPE_CALLBACK:
@@ -3172,6 +3188,7 @@ QCameraMemory *QCamera2HardwareInterface::allocateStreamUserBuf(
         }
         video_mem->setVideoInfo(usage, fmt);
         mem = static_cast<QCameraMemory *>(video_mem);
+        mVideoMem = video_mem;
     }
     break;
 
@@ -3623,6 +3640,7 @@ int QCamera2HardwareInterface::startRecording()
     int32_t rc = NO_ERROR;
 
     LOGI("E");
+    mVideoMem = NULL;
     //link meta stream with video channel if low power mode.
     if (isLowPowerMode()) {
         // Find and try to link a metadata stream from preview channel
@@ -3721,9 +3739,10 @@ int QCamera2HardwareInterface::stopRecording()
     }
     int rc = stopChannel(QCAMERA_CH_TYPE_VIDEO);
 
+    m_cbNotifier.flushVideoNotifications();
     // Disable power hint for video encoding
     m_perfLock.powerHint(POWER_HINT_VIDEO_ENCODE, false);
-
+    mVideoMem = NULL;
     LOGI("X rc = %d", rc);
     return rc;
 }
@@ -3744,8 +3763,9 @@ int QCamera2HardwareInterface::releaseRecordingFrame(const void * opaque)
 {
     int32_t rc = UNKNOWN_ERROR;
     QCameraVideoChannel *pChannel =
-        (QCameraVideoChannel *)m_channels[QCAMERA_CH_TYPE_VIDEO];
+            (QCameraVideoChannel *)m_channels[QCAMERA_CH_TYPE_VIDEO];
     LOGD("opaque data = %p",opaque);
+
     if(pChannel != NULL) {
         rc = pChannel->releaseFrame(opaque, mStoreMetaDataInFrame > 0);
     }
@@ -6461,46 +6481,45 @@ int32_t QCamera2HardwareInterface::processPrepSnapshotDoneEvent(
 int32_t QCamera2HardwareInterface::processASDUpdate(
         __unused cam_asd_decision_t asd_decision)
 {
-    size_t data_len = sizeof(cam_auto_scene_t);
-    size_t buffer_len = 1 *sizeof(int)       //meta type
-                      + 1 *sizeof(int)       //data len
-                      + data_len;            //data
-    camera_memory_t *asdBuffer = mGetMemory(-1,
-                                             buffer_len,
-                                             1,
-                                             mCallbackCookie);
-    if ( NULL == asdBuffer ) {
-        LOGE("Not enough memory for histogram data");
-        return NO_MEMORY;
-    }
+    if ( msgTypeEnabled(CAMERA_MSG_META_DATA) ) {
+        size_t data_len = sizeof(cam_auto_scene_t);
+        size_t buffer_len = 1 *sizeof(int)       //meta type
+                + 1 *sizeof(int)       //data len
+                + data_len;            //data
+        camera_memory_t *asdBuffer = mGetMemory(-1,
+                buffer_len, 1, mCallbackCookie);
+        if ( NULL == asdBuffer ) {
+            LOGE("Not enough memory for histogram data");
+            return NO_MEMORY;
+        }
 
-    int *pASDData = (int *)asdBuffer->data;
-    if (pASDData == NULL) {
-        LOGE("memory data ptr is NULL");
-        return UNKNOWN_ERROR;
-    }
+        int *pASDData = (int *)asdBuffer->data;
+        if (pASDData == NULL) {
+            LOGE("memory data ptr is NULL");
+            return UNKNOWN_ERROR;
+        }
 
 #ifndef VANILLA_HAL
-    pASDData[0] = CAMERA_META_DATA_ASD;
-    pASDData[1] = (int)data_len;
-    pASDData[2] = asd_decision.detected_scene;
+        pASDData[0] = CAMERA_META_DATA_ASD;
+        pASDData[1] = (int)data_len;
+        pASDData[2] = asd_decision.detected_scene;
 
-    qcamera_callback_argm_t cbArg;
-    memset(&cbArg, 0, sizeof(qcamera_callback_argm_t));
-    cbArg.cb_type = QCAMERA_DATA_CALLBACK;
-    cbArg.msg_type = CAMERA_MSG_META_DATA;
-    cbArg.data = asdBuffer;
-    cbArg.user_data = asdBuffer;
-    cbArg.cookie = this;
-    cbArg.release_cb = releaseCameraMemory;
-    int32_t rc = m_cbNotifier.notifyCallback(cbArg);
-    if (rc != NO_ERROR) {
-        LOGE("fail sending notification");
-        asdBuffer->release(asdBuffer);
-    }
+        qcamera_callback_argm_t cbArg;
+        memset(&cbArg, 0, sizeof(qcamera_callback_argm_t));
+        cbArg.cb_type = QCAMERA_DATA_CALLBACK;
+        cbArg.msg_type = CAMERA_MSG_META_DATA;
+        cbArg.data = asdBuffer;
+        cbArg.user_data = asdBuffer;
+        cbArg.cookie = this;
+        cbArg.release_cb = releaseCameraMemory;
+        int32_t rc = m_cbNotifier.notifyCallback(cbArg);
+        if (rc != NO_ERROR) {
+            LOGE("fail sending notification");
+            asdBuffer->release(asdBuffer);
+        }
 #endif
+    }
     return NO_ERROR;
-
 }
 
 /*===========================================================================
