@@ -288,6 +288,7 @@ const char QCameraParameters::ISO_400[] = "ISO400";
 const char QCameraParameters::ISO_800[] = "ISO800";
 const char QCameraParameters::ISO_1600[] = "ISO1600";
 const char QCameraParameters::ISO_3200[] = "ISO3200";
+const char QCameraParameters::ISO_6400[] = "ISO6400";
 const char QCameraParameters::ISO_MANUAL[] = "manual";
 
 
@@ -633,7 +634,8 @@ const QCameraParameters::QCameraMap<cam_iso_mode_type>
     { ISO_400,   CAM_ISO_MODE_400 },
     { ISO_800,   CAM_ISO_MODE_800 },
     { ISO_1600,  CAM_ISO_MODE_1600 },
-    { ISO_3200,  CAM_ISO_MODE_3200 }
+    { ISO_3200,  CAM_ISO_MODE_3200 },
+    { ISO_6400,  CAM_ISO_MODE_6400 }
 };
 
 const QCameraParameters::QCameraMap<cam_hfr_mode_t>
@@ -1949,10 +1951,17 @@ int32_t QCameraParameters::setPreviewFpsRange(const QCameraParameters& params)
             goto end;
         }
     }
+	#ifdef VENDOR_EDIT
+    for(size_t i = 0; i < m_pCapability->hal3_fps_ranges_tbl_cnt; i++) {
+        // if the value is in the supported list
+        if (minFps >= m_pCapability->hal3_fps_ranges_tbl[i].min_fps * 1000 &&
+                maxFps <= m_pCapability->hal3_fps_ranges_tbl[i].max_fps * 1000) {
+    #else
     for(size_t i = 0; i < m_pCapability->fps_ranges_tbl_cnt; i++) {
         // if the value is in the supported list
         if (minFps >= m_pCapability->fps_ranges_tbl[i].min_fps * 1000 &&
                 maxFps <= m_pCapability->fps_ranges_tbl[i].max_fps * 1000) {
+	#endif
             found = true;
             CDBG_HIGH("%s: FPS i=%d : minFps = %d, maxFps = %d"
                     " vidMinFps = %d, vidMaxFps = %d",
@@ -2919,7 +2928,7 @@ int32_t QCameraParameters::setRotation(const QCameraParameters& params)
     int32_t rotation = params.getInt(KEY_ROTATION);
     if (rotation != -1) {
         if (rotation == 0 || rotation == 90 ||
-            rotation == 180 || rotation == 270) {
+            rotation == 180 || rotation == 270) {       
             set(KEY_ROTATION, rotation);
 
             ADD_SET_PARAM_ENTRY_TO_BATCH(m_pParamBuf, CAM_INTF_META_JPEG_ORIENTATION,
@@ -4779,8 +4788,33 @@ int32_t QCameraParameters::initDefaultParameters()
     //set default jpeg quality and thumbnail quality
     set(KEY_JPEG_QUALITY, 85);
     set(KEY_JPEG_THUMBNAIL_QUALITY, 85);
-
+#ifdef VENDOR_EDIT
     // Set FPS ranges
+    if (m_pCapability->hal3_fps_ranges_tbl_cnt > 0 &&
+        m_pCapability->hal3_fps_ranges_tbl_cnt <= MAX_SIZES_CNT) {
+        int default_fps_index = 0;
+        String8 fpsRangeValues = createFpsRangeString(m_pCapability->hal3_fps_ranges_tbl,
+                                                      m_pCapability->hal3_fps_ranges_tbl_cnt,
+                                                      default_fps_index);
+        set(KEY_SUPPORTED_PREVIEW_FPS_RANGE, fpsRangeValues.string());
+
+        int min_fps =
+            int(m_pCapability->hal3_fps_ranges_tbl[default_fps_index].min_fps * 1000);
+        int max_fps =
+            int(m_pCapability->hal3_fps_ranges_tbl[default_fps_index].max_fps * 1000);
+        m_default_fps_range = m_pCapability->hal3_fps_ranges_tbl[default_fps_index];
+        //Set video fps same as preview fps
+        setPreviewFpsRange(min_fps, max_fps, min_fps, max_fps);
+
+        // Set legacy preview fps
+        String8 fpsValues = createFpsString(m_pCapability->hal3_fps_ranges_tbl[default_fps_index]);
+        set(KEY_SUPPORTED_PREVIEW_FRAME_RATES, fpsValues.string());
+        CDBG_HIGH("%s: supported fps rates: %s", __func__, fpsValues.string());
+        CameraParameters::setPreviewFrameRate(int(m_pCapability->hal3_fps_ranges_tbl[default_fps_index].max_fps));
+    } else {
+        ALOGE("%s: supported fps ranges cnt is 0 or exceeds max!!!", __func__);
+    }
+#else
     if (m_pCapability->fps_ranges_tbl_cnt > 0 &&
         m_pCapability->fps_ranges_tbl_cnt <= MAX_SIZES_CNT) {
         int default_fps_index = 0;
@@ -4806,6 +4840,7 @@ int32_t QCameraParameters::initDefaultParameters()
         ALOGE("%s: supported fps ranges cnt is 0 or exceeds max!!!", __func__);
     }
 
+#endif
     // Set supported focus modes
     if (m_pCapability->supported_focus_modes_cnt > 0) {
         String8 focusModeValues = createValuesString(
@@ -6298,11 +6333,53 @@ int32_t  QCameraParameters::setISOValue(const char *isoValue)
         if (value != NAME_NOT_FOUND) {
             CDBG_HIGH("%s: Setting ISO value %s", __func__, isoValue);
             updateParamEntry(KEY_QC_ISO_MODE, isoValue);
+	   if(!strcmp(isoValue, "ISO6400")){
+	       CDBG_HIGH("%s:%d ISO6400, will set iso value to 6400", __func__, __LINE__);
+	       value = 6400;
+            }
             if (ADD_SET_PARAM_ENTRY_TO_BATCH(m_pParamBuf, CAM_INTF_PARM_ISO, value)) {
                 return BAD_VALUE;
             }
             return NO_ERROR;
         }
+#ifdef VENDOR_EDIT
+        else {
+            int continuous_iso = 100;
+            if (!strcmp(isoValue, "ISO125"))
+              continuous_iso = 125;
+            else if (!strcmp(isoValue, "ISO160"))
+              continuous_iso = 160;
+            else if (!strcmp(isoValue, "ISO250"))
+              continuous_iso = 250;
+            else if (!strcmp(isoValue, "ISO320"))
+              continuous_iso = 320;
+            else if (!strcmp(isoValue, "ISO500"))
+              continuous_iso = 500;
+            else if (!strcmp(isoValue, "ISO640"))
+              continuous_iso = 640;
+            else if (!strcmp(isoValue, "ISO1000"))
+              continuous_iso = 1000;
+            else if (!strcmp(isoValue, "ISO1250"))
+              continuous_iso = 1250;
+            else if (!strcmp(isoValue, "ISO2000"))
+              continuous_iso = 2000;
+            else if (!strcmp(isoValue, "ISO2500"))
+              continuous_iso = 2500;
+            else if (!strcmp(isoValue, "ISO4000"))
+              continuous_iso = 4000;
+            else if (!strcmp(isoValue, "ISO5000"))
+              continuous_iso = 5000;
+            else {
+              ALOGE("Invalid ISO value: %s",
+                    (isoValue == NULL) ? "NULL" : isoValue);
+              return BAD_VALUE;
+            }
+            if (ADD_SET_PARAM_ENTRY_TO_BATCH(m_pParamBuf, CAM_INTF_PARM_ISO, continuous_iso)) {
+                return BAD_VALUE;
+            }
+            return NO_ERROR;
+        }
+#endif
     }
     ALOGE("Invalid ISO value: %s",
           (isoValue == NULL) ? "NULL" : isoValue);
@@ -9686,6 +9763,9 @@ uint16_t QCameraParameters::getExifIsoSpeed()
     case CAM_ISO_MODE_3200:
         isoSpeed = 3200;
         break;
+    case CAM_ISO_MODE_6400:
+        isoSpeed = 6400;
+        break;
     }
     return isoSpeed;
 }
@@ -11664,6 +11744,7 @@ void QCameraParameters::setOfflineRAW()
 
    property_get("persist.camera.raw_yuv", value, "0");
    raw_yuv = atoi(value) > 0 ? true : false;
+
    property_get("persist.camera.offlineraw", value, "0");
    offlineRaw = atoi(value) > 0 ? true : false;
    if((raw_yuv || isRdiMode()) && offlineRaw){

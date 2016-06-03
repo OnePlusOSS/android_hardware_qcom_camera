@@ -124,6 +124,8 @@ typedef enum {
     CAM_STATUS_MAX,
 } cam_status_t;
 
+#define QCAMERA_MAX_FILEPATH_LENGTH 64
+
 typedef enum {
     CAM_POSITION_BACK,
     CAM_POSITION_FRONT
@@ -169,7 +171,7 @@ typedef enum {
     CAM_FORMAT_BAYER_QCOM_RAW_8BPP_GRBG,
     CAM_FORMAT_BAYER_QCOM_RAW_8BPP_RGGB,
     CAM_FORMAT_BAYER_QCOM_RAW_8BPP_BGGR,
-    CAM_FORMAT_BAYER_QCOM_RAW_10BPP_GBRG,
+    CAM_FORMAT_BAYER_QCOM_RAW_10BPP_GBRG, // 16
     CAM_FORMAT_BAYER_QCOM_RAW_10BPP_GRBG,
     CAM_FORMAT_BAYER_QCOM_RAW_10BPP_RGGB,
     CAM_FORMAT_BAYER_QCOM_RAW_10BPP_BGGR,
@@ -206,7 +208,7 @@ typedef enum {
     CAM_FORMAT_BAYER_IDEAL_RAW_QCOM_8BPP_GRBG,
     CAM_FORMAT_BAYER_IDEAL_RAW_QCOM_8BPP_RGGB,
     CAM_FORMAT_BAYER_IDEAL_RAW_QCOM_8BPP_BGGR,
-    CAM_FORMAT_BAYER_IDEAL_RAW_QCOM_10BPP_GBRG,
+    CAM_FORMAT_BAYER_IDEAL_RAW_QCOM_10BPP_GBRG, // 40
     CAM_FORMAT_BAYER_IDEAL_RAW_QCOM_10BPP_GRBG,
     CAM_FORMAT_BAYER_IDEAL_RAW_QCOM_10BPP_RGGB,
     CAM_FORMAT_BAYER_IDEAL_RAW_QCOM_10BPP_BGGR,
@@ -517,6 +519,7 @@ typedef enum {
     CAM_ISO_MODE_800,
     CAM_ISO_MODE_1600,
     CAM_ISO_MODE_3200,
+    CAM_ISO_MODE_6400,
     CAM_ISO_MODE_MAX
 } cam_iso_mode_type;
 
@@ -620,6 +623,7 @@ typedef enum {
     CAM_SCENE_MODE_FACE_PRIORITY,
     CAM_SCENE_MODE_BARCODE,
     CAM_SCENE_MODE_HDR,
+    CAM_SCENE_MODE_MANUAL,
     CAM_SCENE_MODE_MAX
 } cam_scene_mode_type;
 
@@ -1145,6 +1149,14 @@ typedef enum {
     NEED_FUTURE_FRAME,
 } cam_prep_snapshot_state_t;
 
+typedef enum {
+  RATIO_NOOP,
+  RATIO_1_1,
+  RATIO_4_3,
+  RATIO_16_9,
+  RATIO_MAX,
+} cam_crop_to_ratio_t;
+
 #define CC_GAINS_COUNT  4
 
 typedef struct {
@@ -1216,10 +1228,6 @@ typedef struct {
     uint32_t exposure_mode;
     uint32_t scenetype;
     float brightness;
-    float est_snap_exp_time;
-    int32_t est_snap_iso_value;
-    uint32_t est_snap_luma;
-    uint32_t est_snap_target;
 } cam_3a_params_t;
 
 typedef struct {
@@ -1258,14 +1266,6 @@ typedef struct {
     int32_t bg_config_buffer_size;
     char stats_buffer_private_debug_data[STATS_BUFFER_DEBUG_DATA_SIZE];
 } cam_stats_buffer_exif_debug_t;
-
-/* 3A version*/
-typedef struct {
-    uint16_t major_version;
-    uint16_t minor_version;
-    uint16_t patch_version;
-    uint16_t new_feature_des;
-} cam_q3a_version_t;
 
 typedef struct {
     uint32_t tuning_data_version;
@@ -1314,6 +1314,11 @@ typedef struct {
    uint32_t max_buffers;
 } cam_buffer_info_t;
 
+typedef enum {
+    CAM_CONTROLLABLE_OUT_NEED = 0,
+    CAM_CONTROLLABLE_OUT_NO_NEED = 1,
+} cam_controllable_out_t;
+
 typedef struct {
     cam_dimension_t stream_sizes[MAX_NUM_STREAMS];
     uint32_t num_streams;
@@ -1321,6 +1326,7 @@ typedef struct {
     uint32_t postprocess_mask[MAX_NUM_STREAMS];
     cam_buffer_info_t buffer_info;
     cam_is_type_t is_type;
+    cam_controllable_out_t controllable_out_needed;
 } cam_stream_size_info_t;
 
 typedef struct {
@@ -1333,6 +1339,11 @@ typedef struct {
     uint32_t num_streams;
     uint32_t stream_id[MAX_NUM_STREAMS];
 } cam_buf_divert_info_t;
+
+typedef struct {
+  uint8_t is_af_stats_info_valid;
+  int focus_value;
+}cam_af_stats_info_t;
 
 typedef  struct {
     uint8_t is_stats_valid;               /* if histgram data is valid */
@@ -1723,6 +1734,9 @@ typedef enum {
     CAM_INTF_META_IMGLIB, /* cam_intf_meta_imglib_t */
     /* FLIP mode parameter*/
     CAM_INTF_PARM_FLIP,
+    CAM_INTF_PARM_RATIO,
+    CAM_INTF_META_URGENT_STREAM_ID,
+    CAM_INTF_META_BF_STATS,
     CAM_INTF_PARM_MAX
 } cam_intf_parm_type_t;
 
@@ -1837,6 +1851,12 @@ typedef struct {
 #define CAM_MAX_FLASH_BRACKETING    5
 
 typedef struct {
+  float x;
+  float y;
+  float z;
+} cam_set_gsensor_t;
+
+typedef struct {
     /* A 1D array of pairs of floats.
      * Mapping a 0-1 input range to a 0-1 output range.
      * The input range must be monotonically increasing with N,
@@ -1942,6 +1962,7 @@ typedef struct {
 
 #define CAM_QCOM_FEATURE_PP_PASS_1      CAM_QCOM_FEATURE_PP_SUPERSET
 #define CAM_QCOM_FEATURE_PP_PASS_2      CAM_QCOM_FEATURE_SCALE | CAM_QCOM_FEATURE_CROP;
+
 
 // Counter clock wise
 typedef enum {
@@ -2232,5 +2253,20 @@ typedef struct {
 typedef struct {
     cam_intf_meta_imglib_input_aec_t meta_imglib_input_aec;
 } cam_intf_meta_imglib_t;
+
+typedef struct {
+    uint32_t stream_user_id;
+} cam_intf_urgent_stream_request_t;
+
+typedef struct {
+    void *pIShandle;
+    int32_t (*image_stability_process)(const uint8_t* const[],
+                        const uint8_t* const[],
+                        uint32_t numImages,
+                        uint32_t srcStrideY,
+                        uint32_t srcStrideVU,
+                        uint32_t srcWidth,
+                        uint32_t srcHeight);
+}image_stability_t;
 
 #endif /* __QCAMERA_TYPES_H__ */

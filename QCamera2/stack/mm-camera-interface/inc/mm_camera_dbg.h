@@ -58,7 +58,7 @@ extern volatile uint32_t gMmCameraIntfLogLevel;
     #define LOG_NIDEBUG 0
     #define LOG_TAG "mm-camera-intf"
     #include <utils/Log.h>
-    #define CDBG(fmt, args...) ALOGD_IF(gMmCameraIntfLogLevel >= 2, fmt, ##args)
+    #define CDBG(fmt, args...) ALOGD_IF(gMmCameraIntfLogLevel >= 3, fmt, ##args)
   #else
     #include <stdio.h>
     #define CDBG(fmt, args...) fprintf(stderr, fmt, ##args)
@@ -67,8 +67,34 @@ extern volatile uint32_t gMmCameraIntfLogLevel;
 #endif
 
 #ifdef _ANDROID_
-  #define CDBG_HIGH(fmt, args...) ALOGD_IF(gMmCameraIntfLogLevel >= 1, fmt, ##args)
-  #define CDBG_ERROR(fmt, args...)  ALOGE(fmt, ##args)
+  #define CDBG_HIGH(fmt, args...) ALOGD_IF(gMmCameraIntfLogLevel >= 2, fmt, ##args)
+  #define CDBG_ERROR(fmt, args...)  ALOGE_IF(gMmCameraIntfLogLevel >= 1, fmt, ##args)
+
+#ifdef ALOGE
+#undef ALOGE
+#endif //#ifdef ALOGE
+#define ALOGE(fmt, args...) ALOGE_IF(gMmCameraIntfLogLevel >= 1, fmt, ##args) 
+  
+#ifdef ALOGD
+#undef ALOGD
+#endif //#ifdef ALOGD
+#define ALOGD(fmt, args...) ALOGD_IF(gMmCameraIntfLogLevel >= 2, fmt, ##args)
+	
+#ifdef ALOGV
+#undef ALOGV
+#endif //#ifdef ALOGV
+#define ALOGV(fmt, args...) ALOGV_IF(gMmCameraIntfLogLevel >= 2, fmt, ##args)
+	
+#ifdef ALOGI
+#undef ALOGI
+#endif //#ifdef ALOGI
+#define ALOGI(fmt, args...) ALOGI_IF(gMmCameraIntfLogLevel >= 2, fmt, ##args)
+	
+#ifdef ALOGW
+#undef ALOGW
+#endif //#ifdef ALOGW
+#define ALOGW(fmt, args...) ALOGW_IF(gMmCameraIntfLogLevel >= 2, fmt, ##args)
+
 #else
   #define CDBG_HIGH(fmt, args...) fprintf(stderr, fmt, ##args)
   #define CDBG_ERROR(fmt, args...) fprintf(stderr, fmt, ##args)

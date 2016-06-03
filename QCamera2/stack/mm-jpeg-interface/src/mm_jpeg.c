@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2015, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -58,11 +58,6 @@
  * minimal resolution needed for normal mode of ops
  */
 #define MM_JPEG_MIN_NOM_RESOLUTION 7680000 /*8MP*/
-
-#ifdef MM_JPEG_USE_PIPELINE
-#undef MM_JPEG_CONCURRENT_SESSIONS_COUNT
-#define MM_JPEG_CONCURRENT_SESSIONS_COUNT 1
-#endif
 
 OMX_ERRORTYPE mm_jpeg_ebd(OMX_HANDLETYPE hComponent,
     OMX_PTR pAppData,
@@ -976,17 +971,7 @@ OMX_ERRORTYPE mm_jpeg_session_config_thumbnail(mm_jpeg_job_session_t* p_session)
   thumbnail_info.output_width = (OMX_U32)p_thumb_dim->dst_dim.width;
   thumbnail_info.output_height = (OMX_U32)p_thumb_dim->dst_dim.height;
 
-  if (p_session->thumb_from_main) {
-    if ((p_session->params.thumb_rotation == 90 ||
-      p_session->params.thumb_rotation == 270) &&
-      (p_session->params.rotation == 0 ||
-      p_session->params.rotation == 180)) {
-
-      thumbnail_info.output_width = (OMX_U32)p_thumb_dim->dst_dim.height;
-      thumbnail_info.output_height = (OMX_U32)p_thumb_dim->dst_dim.width;
-      thumbnail_info.rotation = p_session->params.rotation;
-    }
-  } else if ((p_thumb_dim->dst_dim.width > p_thumb_dim->src_dim.width) ||
+  if ((p_thumb_dim->dst_dim.width > p_thumb_dim->src_dim.width) ||
     (p_thumb_dim->dst_dim.height > p_thumb_dim->src_dim.height)) {
     CDBG_ERROR("%s:%d] Incorrect thumbnail dim %dx%d resetting to %dx%d",
       __func__, __LINE__, p_thumb_dim->dst_dim.width,
@@ -994,7 +979,10 @@ OMX_ERRORTYPE mm_jpeg_session_config_thumbnail(mm_jpeg_job_session_t* p_session)
       p_thumb_dim->src_dim.height);
     thumbnail_info.output_width = (OMX_U32)p_thumb_dim->src_dim.width;
     thumbnail_info.output_height = (OMX_U32)p_thumb_dim->src_dim.height;
-  }
+  }else {
+	 thumbnail_info.output_width = p_thumb_dim->dst_dim.width;
+	 thumbnail_info.output_height = p_thumb_dim->dst_dim.height;
+   }
 
   //If the main image and thumbnail aspect ratio are different, reset the
   // thumbnail crop info to avoid distortion
@@ -1416,8 +1404,6 @@ static OMX_ERRORTYPE mm_jpeg_configure_job_params(
   CDBG_ERROR("%s:%d] Work buffer info %d %p WorkBufSize: %d invalidate", __func__, __LINE__,
     work_buffer.fd, work_buffer.vaddr, work_buffer.length);
 
-  buffer_invalidate(&p_session->work_buffer);
-
   ret = OMX_SetConfig(p_session->omx_handle, work_buffer_index,
     &work_buffer);
   if (ret) {
@@ -1744,10 +1730,7 @@ static void *mm_jpeg_jobmgr_thread(void *data)
 
     /* check ongoing q size */
     num_ongoing_jobs = mm_jpeg_queue_get_size(&my_obj->ongoing_job_q);
-
-    CDBG("%s:%d] ongoing job  %d %d", __func__,
-      __LINE__, num_ongoing_jobs, MM_JPEG_CONCURRENT_SESSIONS_COUNT);
-    if (num_ongoing_jobs >= MM_JPEG_CONCURRENT_SESSIONS_COUNT) {
+    if (num_ongoing_jobs >= NUM_MAX_JPEG_CNCURRENT_JOBS) {
       CDBG_ERROR("%s:%d] ongoing job already reach max %d", __func__,
         __LINE__, num_ongoing_jobs);
       continue;
@@ -1902,9 +1885,7 @@ int32_t mm_jpeg_init(mm_jpeg_obj *my_obj)
     return -1;
   }
   work_buf_size = CEILING64((uint32_t)my_obj->max_pic_w) *
-    CEILING64((uint32_t)my_obj->max_pic_h) *
-    MM_JPEG_NOM_QUALITY_MUL_FACTOR;
-
+    CEILING64((uint32_t)my_obj->max_pic_h) * 3U / 2U;
   for (i = 0; i < initial_workbufs_cnt; i++) {
     my_obj->ionBuffer[i].size = CEILING32(work_buf_size);
     CDBG_HIGH("Max picture size %d x %d, WorkBufSize = %zu",
@@ -2133,7 +2114,7 @@ int32_t mm_jpeg_start_job(mm_jpeg_obj *my_obj,
       cam_sem_post(&my_obj->job_mgr.job_sem);
   }
 
-  CDBG_HIGH("%s:%d] job_id %d X", __func__, __LINE__, *job_id);
+  CDBG_HIGH("%s:%d] X", __func__, __LINE__);
 
   return rc;
 }
@@ -2274,39 +2255,17 @@ int32_t mm_jpeg_create_session(mm_jpeg_obj *my_obj,
     return -1;
   }
 
-  if (p_params->quality > MM_JPEG_NOM_QUALITY_THRESHOLD) {
-
-    work_buf_size = CEILING64((uint32_t)my_obj->max_pic_w) *
-      CEILING64((uint32_t)my_obj->max_pic_h) *
-      MM_JPEG_HIGH_QUALITY_MUL_FACTOR;
-
-    for (i = 0; i < my_obj->work_buf_cnt; i++) {
-      CDBG_HIGH("Max picture size %d x %d, modified WorkBufSize = %zu",
-        my_obj->max_pic_w, my_obj->max_pic_h, CEILING32(work_buf_size));
-
-      my_obj->ionBuffer[i].addr =
-        (uint8_t *)buffer_reallocate(&my_obj->ionBuffer[i],
-        CEILING32(work_buf_size), 1);
-      if (NULL == my_obj->ionBuffer[i].addr) {
-        CDBG_ERROR("%s:%d] Ion reallocation failed", __func__, __LINE__);
-        goto error1;
-      }
-    }
-  } else {
-    work_buf_size = CEILING64((uint32_t)my_obj->max_pic_w) *
-      CEILING64((uint32_t)my_obj->max_pic_h) *
-      MM_JPEG_NOM_QUALITY_MUL_FACTOR;
-  }
-
   num_omx_sessions = 1;
   if (p_params->burst_mode) {
     num_omx_sessions = MM_JPEG_CONCURRENT_SESSIONS_COUNT;
   }
-  work_bufs_need = num_omx_sessions;
+  work_bufs_need = my_obj->num_sessions + num_omx_sessions;
   if (work_bufs_need > MM_JPEG_CONCURRENT_SESSIONS_COUNT) {
     work_bufs_need = MM_JPEG_CONCURRENT_SESSIONS_COUNT;
   }
   CDBG_HIGH("%s:%d] >>>> Work bufs need %d", __func__, __LINE__, work_bufs_need);
+  work_buf_size = CEILING64((uint32_t)my_obj->max_pic_w) *
+      CEILING64((uint32_t)my_obj->max_pic_h) * 3 / 2;
   for (i = my_obj->work_buf_cnt; i < work_bufs_need; i++) {
      my_obj->ionBuffer[i].size = CEILING32(work_buf_size);
      CDBG_HIGH("Max picture size %d x %d, WorkBufSize = %zu",
@@ -2319,7 +2278,6 @@ int32_t mm_jpeg_create_session(mm_jpeg_obj *my_obj,
      }
      my_obj->work_buf_cnt++;
   }
-
 
   /* init omx handle queue */
   p_session_handle_q = (mm_jpeg_queue_t *) malloc(sizeof(*p_session_handle_q));
@@ -2369,7 +2327,7 @@ int32_t mm_jpeg_create_session(mm_jpeg_obj *my_obj,
     }
     p_prev_session = p_session;
 
-    buf_idx = i;
+    buf_idx = my_obj->num_sessions + i;
     if (buf_idx < MM_JPEG_CONCURRENT_SESSIONS_COUNT) {
       p_session->work_buffer = my_obj->ionBuffer[buf_idx];
     } else {
@@ -2782,15 +2740,6 @@ OMX_ERRORTYPE mm_jpeg_fbd(OMX_HANDLETYPE hComponent,
     pthread_mutex_unlock(&p_session->lock);
     return ret;
   }
-#ifdef MM_JPEG_DUMP_OUT_BS
-  char filename[256];
-  static int bsc;
-  snprintf(filename, sizeof(filename),
-      QCAMERA_DUMP_FRM_LOCATION"jpeg/mm_jpeg_bs%d.jpg", bsc++);
-  DUMP_TO_FILE(filename,
-    pBuffer->pBuffer,
-    (size_t)(uint32_t)pBuffer->nFilledLen);
-#endif
 
   p_session->fbd_count++;
   if (NULL != p_session->params.jpeg_cb) {

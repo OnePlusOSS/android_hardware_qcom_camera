@@ -40,6 +40,7 @@
 #include <gralloc_priv.h>
 #include <gui/Surface.h>
 #include <dlfcn.h>
+#include "util/QCameraFlash.h"
 
 #include "QCamera2HWI.h"
 #include "QCameraMem.h"
@@ -1143,7 +1144,7 @@ QCamera2HardwareInterface::QCamera2HardwareInterface(uint32_t cameraId)
     memset(&mExifParams, 0, sizeof(mm_jpeg_exif_params_t));
 
     memset(m_BackendFileName, 0, QCAMERA_MAX_FILEPATH_LENGTH);
-
+    
 #ifdef HAS_MULTIMEDIA_HINTS
     if (hw_get_module(POWER_HARDWARE_MODULE_ID, (const hw_module_t **)&m_pPowerModule)) {
         ALOGE("%s: %s module not found", __func__, POWER_HARDWARE_MODULE_ID);
@@ -1477,22 +1478,6 @@ int QCamera2HardwareInterface::getCapabilities(uint32_t cameraId,
 }
 
 /*===========================================================================
- * FUNCTION   : getCamHalCapabilities
- *
- * DESCRIPTION: get the HAL capabilities structure
- *
- * PARAMETERS :
- *   @cameraId  : camera Id
- *
- * RETURN     : capability structure of respective camera
- *
- *==========================================================================*/
-cam_capability_t* QCamera2HardwareInterface::getCamHalCapabilities()
-{
-    return gCamCaps[mCameraId];
-}
-
-/*===========================================================================
  * FUNCTION   : getBufNumRequired
  *
  * DESCRIPTION: return number of stream buffers needed for given stream type
@@ -1631,15 +1616,19 @@ uint8_t QCamera2HardwareInterface::getBufNumRequired(cam_stream_type_t stream_ty
             }
 
             bufferCnt += mParameters.getNumOfExtraBuffersForVideo();
-            //if its 4K encoding usecase, then add extra buffer
+            //if its 4K encoding usecase and power save feature enabled, then add extra buffer
             cam_dimension_t dim;
             mParameters.getStreamDimension(CAM_STREAM_TYPE_VIDEO, dim);
             if (is4k2kResolution(&dim)) {
-                 //get additional buffer count
-                 property_get("vidc.enc.dcvs.extra-buff-count", value, "0");
-                 bufferCnt += atoi(value);
+                 property_get("vidc.debug.perf.mode", value, "0");
+                 bool isPwrSavEnabled = (atoi(value) == 2);
+                 if (isPwrSavEnabled) {
+                     //get additional buffer count
+                     property_get("vidc.enc.dcvs.extra-buff-count", value, "0");
+                     bufferCnt += atoi(value);
+                 }
             }
-            ALOGI("Buffer count is %d, width / height (%d/%d) ", bufferCnt, dim.width, dim.height);
+            ALOGI("Buffer count is %d width / height (%d/%d) ", bufferCnt, dim.width, dim.height);
         }
         break;
     case CAM_STREAM_TYPE_METADATA:
@@ -6198,6 +6187,17 @@ int32_t QCamera2HardwareInterface::stopChannel(qcamera_ch_type_enum_t ch_type)
     return rc;
 }
 
+void QCamera2HardwareInterface::enableDisplayFrame()
+{
+mParameters.setDisplayFrame(true);
+}
+
+void QCamera2HardwareInterface::disableDisplayFrame()
+{
+mParameters.setDisplayFrame(false);
+}
+
+
 /*===========================================================================
  * FUNCTION   : preparePreview
  *
@@ -6377,7 +6377,6 @@ int32_t QCamera2HardwareInterface::processFaceDetectionResult(cam_face_detection
         faceResultSize = sizeof(camera_frame_metadata_t);
         faceResultSize += sizeof(camera_face_t) * MAX_ROI;
     }else if(fd_type == QCAMERA_FD_SNAPSHOT){
-#ifndef VANILLA_HAL
         // fd for snapshot frames
         //check if face is detected in this frame
         if(fd_data->num_faces_detected > 0){
@@ -6387,7 +6386,6 @@ int32_t QCamera2HardwareInterface::processFaceDetectionResult(cam_face_detection
             //no face
             data_len = 0;
         }
-#endif
         faceResultSize = 1 *sizeof(int)    //meta data type
                        + 1 *sizeof(int)    // meta data len
                        + data_len;         //data
@@ -6745,12 +6743,22 @@ int QCamera2HardwareInterface::calcThermalLevel(
             // Set lowest min FPS for now
             adjustedRange.min_fps = minFPS/1000.0f;
             adjustedRange.max_fps = minFPS/1000.0f;
+			#ifdef VENDOR_EDIT
+            for (size_t i = 0; i < gCamCaps[mCameraId]->hal3_fps_ranges_tbl_cnt; i++) {
+                if (gCamCaps[mCameraId]->hal3_fps_ranges_tbl[i].min_fps < adjustedRange.min_fps) {
+                    adjustedRange.min_fps = gCamCaps[mCameraId]->hal3_fps_ranges_tbl[i].min_fps;
+                    adjustedRange.max_fps = adjustedRange.min_fps;
+                }
+            }
+			#else
             for (size_t i = 0; i < gCamCaps[mCameraId]->fps_ranges_tbl_cnt; i++) {
                 if (gCamCaps[mCameraId]->fps_ranges_tbl[i].min_fps < adjustedRange.min_fps) {
                     adjustedRange.min_fps = gCamCaps[mCameraId]->fps_ranges_tbl[i].min_fps;
                     adjustedRange.max_fps = adjustedRange.min_fps;
                 }
             }
+
+			#endif
             skipPattern = MAX_SKIP;
             adjustedRange.video_min_fps = adjustedRange.min_fps;
             adjustedRange.video_max_fps = adjustedRange.max_fps;

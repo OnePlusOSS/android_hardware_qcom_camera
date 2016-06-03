@@ -2300,7 +2300,7 @@ int32_t getExifGpsProcessingMethod(char *gpsProcessingMethod,
         count = EXIF_ASCII_PREFIX_SIZE;
         strlcpy(gpsProcessingMethod + EXIF_ASCII_PREFIX_SIZE,
                 value,
-                GPS_PROCESSING_METHOD_SIZE);
+                strlen(value)+1);
         count += (uint32_t)strlen(value);
         gpsProcessingMethod[count++] = '\0'; // increase 1 for the last NULL char
         return NO_ERROR;
@@ -3510,5 +3510,4 @@ void QCamera3SupportChannel::putStreamBufs()
     delete mMemory;
     mMemory = NULL;
 }
-
 }; // namespace qcamera

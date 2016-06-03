@@ -373,6 +373,10 @@ int32_t QCamera3PostProcessor::getJpegEncodeConfig(
         m_bThumbnailNeeded = FALSE;
     encode_parm.encode_thumbnail = m_bThumbnailNeeded;
 
+    ALOGI("%s: thumbnail size %dx%d", __func__,
+          jpeg_settings->thumbnail_size.width,
+          jpeg_settings->thumbnail_size.height);
+
     // get color format
     cam_format_t img_fmt = CAM_FORMAT_YUV_420_NV12;  //default value
     main_stream->getFormat(img_fmt);
@@ -1268,10 +1272,8 @@ int32_t QCamera3PostProcessor::encodeData(qcamera_hal3_jpeg_data_t *jpeg_job_dat
 
     cam_dimension_t dst_dim;
     memset(&dst_dim, 0, sizeof(cam_dimension_t));
-
-    if (NO_ERROR != m_parent->getStreamSize(dst_dim)) {
-       ALOGE("%s: Failed to get size of the JPEG stream", __func__);
-       return UNKNOWN_ERROR;
+    if (srcChannel->getStreamByIndex(0)) {
+       srcChannel->getStreamByIndex(0)->getFrameDimension(dst_dim);
     }
 
     needJpegRotation = hal_obj->needJpegRotation();

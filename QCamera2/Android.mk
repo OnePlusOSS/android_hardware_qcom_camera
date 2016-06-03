@@ -7,6 +7,7 @@ include $(CLEAR_VARS)
 LOCAL_SRC_FILES := \
         util/QCameraCmdThread.cpp \
         util/QCameraQueue.cpp \
+        util/QCameraFlash.cpp \
         QCamera2Hal.cpp \
         QCamera2Factory.cpp
 
@@ -35,10 +36,6 @@ LOCAL_SRC_FILES += \
 LOCAL_CFLAGS := -Wall -Wextra -Werror
 LOCAL_CFLAGS += -DHAS_MULTIMEDIA_HINTS
 
-ifeq ($(TARGET_USES_AOSP),true)
-LOCAL_CFLAGS += -DVANILLA_HAL
-endif
-
 #HAL 1.0 Flags
 LOCAL_CFLAGS += -DDEFAULT_DENOISE_MODE_ON -DHAL3
 
@@ -51,6 +48,7 @@ LOCAL_C_INCLUDES := \
         $(LOCAL_PATH)/../mm-image-codec/qexif \
         $(LOCAL_PATH)/../mm-image-codec/qomx_core \
         $(LOCAL_PATH)/util \
+        device/qcom/common/power \
 
 #HAL 1.0 Include paths
 LOCAL_C_INCLUDES += \
@@ -58,11 +56,12 @@ LOCAL_C_INCLUDES += \
         hardware/qcom/camera/QCamera2/HAL
 
 LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr/include
-LOCAL_ADDITIONAL_DEPENDENCIES := $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr
 
 #LOCAL_STATIC_LIBRARIES := libqcamera2_util
 LOCAL_C_INCLUDES += \
-        $(TARGET_OUT_HEADERS)/qcom/display
+        hardware/qcom/display/libgralloc
+LOCAL_C_INCLUDES += \
+        hardware/qcom/display/libqdutils
 
 LOCAL_SHARED_LIBRARIES := libcamera_client liblog libhardware libutils libcutils libdl
 LOCAL_SHARED_LIBRARIES += libmmcamera_interface libmmjpeg_interface libui libcamera_metadata

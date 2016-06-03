@@ -31,6 +31,7 @@
 #include <utils/Log.h>
 #include <sys/prctl.h>
 #include "QCameraCmdThread.h"
+#include "QCamera2HWI.h"
 
 using namespace android;
 

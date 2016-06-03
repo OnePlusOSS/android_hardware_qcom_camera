@@ -1065,9 +1065,9 @@ int32_t QCameraReprocessChannel::addReprocStreamsFromSource(
             // add reprocess stream
             if (streamInfo->reprocess_config.pp_feature_config.feature_mask
                     & CAM_QCOM_FEATURE_ROTATION) {
-                rc = addStream(allocator, pStreamInfoBuf, pMiscBuf,
-                        minStreamBufNum, &padding, NULL, NULL, false, false,
-                        streamInfo->reprocess_config.pp_feature_config.rotation);
+            rc = addStream(allocator, pStreamInfoBuf, pMiscBuf,
+                    minStreamBufNum, &padding, NULL, NULL, false, false,
+                    streamInfo->reprocess_config.pp_feature_config.rotation);
             } else {
                 rc = addStream(allocator, pStreamInfoBuf, pMiscBuf,
                         minStreamBufNum, &padding, NULL, NULL, false, false);

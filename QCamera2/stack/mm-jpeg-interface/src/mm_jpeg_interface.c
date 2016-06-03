@@ -298,12 +298,12 @@ uint32_t jpeg_open(mm_jpeg_ops_t *ops, mm_dimension picture_size)
   uint32_t globalLogLevel = 0;
 
   memset(prop, 0x0, sizeof(prop));
-  property_get("persist.camera.hal.debug", prop, "0");
+  property_get("persist.camera.hal.jpeg.debug", prop, "1");
   int val = atoi(prop);
   if (0 <= val) {
       gMmJpegIntfLogLevel = (uint32_t)val;
   }
-  property_get("persist.camera.global.debug", prop, "0");
+  property_get("persist.camera.hal.global.debug", prop, "0");
   val = atoi(prop);
   if (0 <= val) {
       globalLogLevel = (uint32_t)val;

@@ -30,6 +30,7 @@
 #include <utils/Errors.h>
 #include <utils/Log.h>
 #include "QCameraQueue.h"
+#include "QCamera2HWI.h"
 
 namespace qcamera {
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2013-2014, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2015, The Linux Foundataion. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -27,68 +27,42 @@
  *
  */
 
-#ifndef __MM_JPEG_IONBUF_H__
-#define __MM_JPEG_IONBUF_H__
+#ifndef __QCAMERA_FLASH_H__
+#define __QCAMERA_FLASH_H__
 
+#include <hardware/camera_common.h>
 
-#include <stdio.h>
-#include <linux/msm_ion.h>
-#include <sys/mman.h>
-#include <unistd.h>
-#include <errno.h>
-#include <fcntl.h>
-#include "mm_jpeg_dbg.h"
+extern "C" {
+#include <mm_camera_interface.h>
+}
 
-typedef struct  {
-  struct ion_fd_data ion_info_fd;
-  struct ion_allocation_data alloc;
-  int p_pmem_fd;
-  size_t size;
-  int ion_fd;
-  uint8_t *addr;
-} buffer_t;
+namespace qcamera {
 
-/** buffer_allocate:
- *
- *  Arguments:
- *     @p_buffer: ION buffer
- *
- *  Return:
- *     buffer address
- *
- *  Description:
- *      allocates ION buffer
- *
- **/
-void* buffer_allocate(buffer_t *p_buffer, int cached);
+#define QCAMERA_TORCH_CURRENT_VALUE 200
 
-/** buffer_deallocate:
- *
- *  Arguments:
- *     @p_buffer: ION buffer
- *
- *  Return:
- *     error val
- *
- *  Description:
- *      deallocates ION buffer
- *
- **/
-int buffer_deallocate(buffer_t *p_buffer);
+class QCameraFlash {
+public:
+    static QCameraFlash& getInstance();
 
-/** buffer_invalidate:
- *
- *  Arguments:
- *     @p_buffer: ION buffer
- *
- *  Return:
- *     error val
- *
- *  Description:
- *      Invalidates the cached buffer
- *
- **/
-int buffer_invalidate(buffer_t *p_buffer);
+    int32_t registerCallbacks(const camera_module_callbacks_t* callbacks);
+    int32_t initFlash(const int camera_id);
+    int32_t setFlashMode(const int camera_id, const bool on);
+    int32_t deinitFlash(const int camera_id);
+    int32_t reserveFlashForCamera(const int camera_id);
+    int32_t releaseFlashFromCamera(const int camera_id);
 
-#endif
+private:
+    QCameraFlash();
+    virtual ~QCameraFlash();
+    QCameraFlash(const QCameraFlash&);
+    QCameraFlash& operator=(const QCameraFlash&);
 
+    const camera_module_callbacks_t *m_callbacks;
+    int32_t m_flashFds[MM_CAMERA_MAX_NUM_SENSORS];
+    bool m_flashOn[MM_CAMERA_MAX_NUM_SENSORS];
+    bool m_cameraOpen[MM_CAMERA_MAX_NUM_SENSORS];
+};
+
+}; // namespace qcamera
+
+#endif /* __QCAMERA_FLASH_H__ */

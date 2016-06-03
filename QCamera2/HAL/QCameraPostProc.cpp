@@ -1988,10 +1988,6 @@ int32_t QCameraPostProcessor::encodeData(qcamera_jpeg_data_t *jpeg_job_data,
     jpg_job.encode_job.main_dim.dst_dim = dst_dim;
     jpg_job.encode_job.main_dim.crop = crop;
 
-    // get 3a sw version info
-    cam_q3a_version_t sw_version =
-        m_parent->getCamHalCapabilities()->q3a_version;
-
     // get exif data
     QCameraExif *pJpegExifObj = m_parent->getExifData();
     jpeg_job_data->pJpegExifObj = pJpegExifObj;
@@ -1999,14 +1995,6 @@ int32_t QCameraPostProcessor::encodeData(qcamera_jpeg_data_t *jpeg_job_data,
         jpg_job.encode_job.exif_info.exif_data = pJpegExifObj->getEntries();
         jpg_job.encode_job.exif_info.numOfEntries =
             pJpegExifObj->getNumOfEntries();
-        jpg_job.encode_job.exif_info.debug_data.sw_3a_version[0] =
-            sw_version.major_version;
-        jpg_job.encode_job.exif_info.debug_data.sw_3a_version[1] =
-            sw_version.minor_version;
-        jpg_job.encode_job.exif_info.debug_data.sw_3a_version[2] =
-            sw_version.patch_version;
-        jpg_job.encode_job.exif_info.debug_data.sw_3a_version[3] =
-            sw_version.new_feature_des;
     }
 
     // set rotation only when no online rotation or offline pp rotation is done before
@@ -2024,6 +2012,7 @@ int32_t QCameraPostProcessor::encodeData(qcamera_jpeg_data_t *jpeg_job_data,
             // we use the main stream/frame to encode thumbnail
             thumb_stream = main_stream;
             thumb_frame = main_frame;
+        }
             if (m_parent->needRotationReprocess() &&
                 ((90 == jpeg_rotation) || (270 == jpeg_rotation))) {
                 // swap thumbnail dimensions
@@ -2031,7 +2020,6 @@ int32_t QCameraPostProcessor::encodeData(qcamera_jpeg_data_t *jpeg_job_data,
                 jpg_job.encode_job.thumb_dim.dst_dim.width = tmp_dim.height;
                 jpg_job.encode_job.thumb_dim.dst_dim.height = tmp_dim.width;
             }
-        }
 
         memset(&src_dim, 0, sizeof(cam_dimension_t));
         thumb_stream->getFrameDimension(src_dim);

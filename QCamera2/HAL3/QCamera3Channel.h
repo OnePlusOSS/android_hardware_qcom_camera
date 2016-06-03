@@ -432,6 +432,7 @@ public:
             { return NO_ERROR; };
 
     static cam_dimension_t kDim;
+
 private:
     QCamera3HeapMemory *mMemory;
     cam_dimension_t mDim;

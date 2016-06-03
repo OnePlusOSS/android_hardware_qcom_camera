@@ -48,17 +48,42 @@ extern "C" {
 #ifdef CDBG
 #undef CDBG
 #endif //#ifdef CDBG
-#define CDBG(fmt, args...) ALOGD_IF(gCamHal3LogLevel >= 2, fmt, ##args)
+#define CDBG(fmt, args...) ALOGD_IF(gCamHal3LogLevel >= 3, fmt, ##args)
 
 #ifdef CDBG_HIGH
 #undef CDBG_HIGH
 #endif //#ifdef CDBG_HIGH
-#define CDBG_HIGH(fmt, args...) ALOGD_IF(gCamHal3LogLevel >= 1, fmt, ##args)
+#define CDBG_HIGH(fmt, args...) ALOGD_IF(gCamHal3LogLevel >= 2, fmt, ##args)
 
-#ifdef CDBG_FATAL_IF
-#undef CDBG_FATAL_IF
-#endif //#ifdef CDBG_FATAL_IF
-#define CDBG_FATAL_IF(cond, ...) LOG_ALWAYS_FATAL_IF(cond, ## __VA_ARGS__)
+#ifdef ALOGE
+#undef ALOGE
+#endif //#ifdef ALOGE
+#define ALOGE(fmt, args...) ALOGE_IF(gCamHal3LogLevel >= 1, fmt, ##args) 
+
+#ifdef ALOGD
+#undef ALOGD
+#endif //#ifdef ALOGD
+#define ALOGD(fmt, args...) ALOGD_IF(gCamHal3LogLevel >= 2, fmt, ##args)
+  
+#ifdef ALOGV
+#undef ALOGV
+#endif //#ifdef ALOGV
+#define ALOGV(fmt, args...) ALOGV_IF(gCamHal3LogLevel >= 2, fmt, ##args)
+  
+#ifdef ALOGI
+#undef ALOGI
+#endif //#ifdef ALOGI
+#define ALOGI(fmt, args...) ALOGI_IF(gCamHal3LogLevel >= 2, fmt, ##args)
+  
+#ifdef ALOGW
+#undef ALOGW
+#endif //#ifdef ALOGW
+#define ALOGW(fmt, args...) ALOGW_IF(gCamHal3LogLevel >= 2, fmt, ##args)
+
+#ifdef CDBG_ERROR
+#undef CDBG_ERROR
+#endif //#ifdef CDBG_ERROR
+#define CDBG_ERROR(fmt, args...) ALOGE_IF(gCamHal3LogLevel >= 1, fmt, ##args)
 
 using namespace android;
 
@@ -70,6 +95,11 @@ namespace qcamera {
 
 #ifndef FALSE
 #define FALSE 0
+#endif
+
+#ifndef VENDOR_EDIT
+#define MAX(a, b) ((a) > (b) ? (a) : (b))
+#define MIN(a, b) ((a) < (b) ? (a) : (b))
 #endif
 
 /* Time related macros */
@@ -192,6 +222,9 @@ public:
     QCamera3Exif *getExifData();
     mm_jpeg_exif_params_t get3AExifParams();
     uint8_t getMobicatMask();
+    static void getFlashInfo(const int cameraId,
+            bool& hasFlash,
+            char (&flashNode)[QCAMERA_MAX_FILEPATH_LENGTH]);
 
     template <typename fwkType, typename halType> struct QCameraMap {
         fwkType fwk_name;
@@ -321,8 +354,6 @@ private:
     } PendingReprocessResult;
 
     typedef KeyedVector<uint32_t, Vector<PendingBufferInfo> > FlushMap;
-    typedef List<QCamera3HardwareInterface::PendingRequestInfo>::iterator
-            pendingRequestIterator;
 
     List<PendingReprocessResult> mPendingReprocessResultList;
     List<PendingRequestInfo> mPendingRequestsList;
@@ -382,8 +413,6 @@ private:
             cam_illuminat_t> REFERENCE_ILLUMINANT_MAP[];
 
     static const QCameraPropMap CDS_MAP[];
-
-    pendingRequestIterator erasePendingRequest(pendingRequestIterator i);
 };
 
 }; // namespace qcamera

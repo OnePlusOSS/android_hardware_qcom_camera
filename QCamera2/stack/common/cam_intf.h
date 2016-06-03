@@ -170,8 +170,6 @@ typedef struct{
        raw resolution */
     int64_t raw_min_duration[MAX_SIZES_CNT];
 
-    /* 3A version*/
-    cam_q3a_version_t q3a_version;
     /* supported focus algorithms */
     size_t supported_focus_algos_cnt;
     cam_focus_algorithm_type supported_focus_algos[CAM_FOCUS_ALGO_MAX];
@@ -389,9 +387,21 @@ typedef struct{
       the decimal representation of a percentage
       ex: 10% margin = 0.1 */
     float supported_is_type_margins[IS_TYPE_MAX];
-
     /* Max cpp batch size */
     uint8_t max_batch_bufs_supported;
+#ifdef VENDOR_EDIT
+    size_t hal3_fps_ranges_tbl_cnt;                              /* fps ranges table size */
+    cam_fps_range_t hal3_fps_ranges_tbl[MAX_SIZES_CNT];          /* fps ranges table */
+#endif
+#ifdef VENDOR_EDIT
+    /*liuyan 20150523 add, set hw level*/
+    uint8_t islowfps;
+#endif
+#ifdef VENDOR_EDIT
+    size_t hal3_preview_video_sizes_tbl_cnt;                             /* video sizes table size */
+    cam_dimension_t hal3_preview_video_sizes_tbl[MAX_SIZES_CNT];         /* video sizes table */
+#endif
+    uint8_t flash_dev_name[QCAMERA_MAX_FILEPATH_LENGTH];
 } cam_capability_t;
 
 typedef enum {
@@ -760,6 +770,9 @@ typedef struct {
     INCLUDE(CAM_INTF_META_IMGLIB,                       cam_intf_meta_imglib_t,      1);
     INCLUDE(CAM_INTF_PARM_CAPTURE_FRAME_CONFIG,         cam_capture_frame_config_t,  1);
     INCLUDE(CAM_INTF_PARM_FLIP,                         int32_t,                     1);
+    INCLUDE(CAM_INTF_PARM_RATIO,                        int32_t,                     1);
+    INCLUDE(CAM_INTF_META_URGENT_STREAM_ID,             cam_stream_ID_t,             1);
+    INCLUDE(CAM_INTF_META_BF_STATS,                         cam_af_stats_info_t,         1);
 } metadata_data_t;
 
 /* Update clear_metadata_buffer() function when a new is_xxx_valid is added to

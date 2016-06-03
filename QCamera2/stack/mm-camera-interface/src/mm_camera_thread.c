@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2015, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -508,7 +508,6 @@ int32_t mm_camera_poll_thread_launch(mm_camera_poll_thread_t * poll_cb,
     for (i = 0; i < cnt; i++) {
         poll_cb->poll_entries[i].fd = -1;
     }
-    //Initialize pipe fds
     poll_cb->pfds[0] = -1;
     poll_cb->pfds[1] = -1;
     rc = pipe(poll_cb->pfds);

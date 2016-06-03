@@ -77,12 +77,42 @@ inline void __null_log(int, const char *, const char *, ...) {}
 #ifdef CDBG
 #undef CDBG
 #endif //#ifdef CDBG
-#define CDBG(fmt, args...) ALOGD_IF(gCamHalLogLevel >= 2, fmt, ##args)
+#define CDBG(fmt, args...) ALOGD_IF(gCamHalLogLevel >= 3, fmt, ##args)
 
 #ifdef CDBG_HIGH
 #undef CDBG_HIGH
 #endif //#ifdef CDBG_HIGH
-#define CDBG_HIGH(fmt, args...) ALOGD_IF(gCamHalLogLevel >= 1, fmt, ##args)
+#define CDBG_HIGH(fmt, args...) ALOGD_IF(gCamHalLogLevel >= 2, fmt, ##args)
+
+#ifdef ALOGE
+#undef ALOGE
+#endif //#ifdef ALOGE
+#define ALOGE(fmt, args...) ALOGE_IF(gCamHalLogLevel >= 1, fmt, ##args) 
+
+#ifdef ALOGD
+#undef ALOGD
+#endif //#ifdef ALOGD
+#define ALOGD(fmt, args...) ALOGD_IF(gCamHalLogLevel >= 2, fmt, ##args)
+  
+#ifdef ALOGV
+#undef ALOGV
+#endif //#ifdef ALOGV
+#define ALOGV(fmt, args...) ALOGV_IF(gCamHalLogLevel >= 2, fmt, ##args)
+  
+#ifdef ALOGI
+#undef ALOGI
+#endif //#ifdef ALOGI
+#define ALOGI(fmt, args...) ALOGI_IF(gCamHalLogLevel >= 2, fmt, ##args)
+  
+#ifdef ALOGW
+#undef ALOGW
+#endif //#ifdef ALOGW
+#define ALOGW(fmt, args...) ALOGW_IF(gCamHalLogLevel >= 2, fmt, ##args)
+
+#ifdef CDBG_ERROR
+#undef CDBG_ERROR
+#endif //#ifdef CDBG_ERROR
+#define CDBG_ERROR(fmt, args...) ALOGE_IF(gCamHalLogLevel >= 1, fmt, ##args)
 
 #endif // DISABLE_DEBUG_LOG
 
@@ -263,7 +293,6 @@ public:
 
     static int getCapabilities(uint32_t cameraId, struct camera_info *info);
     static int initCapabilities(uint32_t cameraId, mm_camera_vtbl_t *cameraHandle);
-    cam_capability_t *getCamHalCapabilities();
 
     // Implementation of QCameraAllocator
     virtual QCameraMemory *allocateStreamBuf(cam_stream_type_t stream_type,
@@ -417,6 +446,8 @@ private:
                                stream_cb_routine streamCB,
                                void *userData);
     int32_t preparePreview();
+    void disableDisplayFrame();
+    void enableDisplayFrame();
     void unpreparePreview();
     int32_t prepareRawStream(QCameraChannel *pChannel);
     QCameraChannel *getChannelByHandle(uint32_t channelHandle);
