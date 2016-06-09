@@ -1418,7 +1418,9 @@ int QCamera3HardwareInterface::configureStreamsPerfLocked(
     size_t count = IS_TYPE_MAX;
     count = MIN(gCamCapability[mCameraId]->supported_is_types_cnt, count);
     for (size_t i = 0; i < count; i++) {
-        if (gCamCapability[mCameraId]->supported_is_types[i] == IS_TYPE_EIS_2_0) {
+        if ((gCamCapability[mCameraId]->supported_is_types[i] == IS_TYPE_EIS_2_0) ||
+            (gCamCapability[mCameraId]->supported_is_types[i] == IS_TYPE_EIS_3_0))
+        {
             eisSupported = true;
             margin_index = (int32_t)i;
             break;
@@ -1759,11 +1761,16 @@ int QCamera3HardwareInterface::configureStreamsPerfLocked(
         setPAAFSupport(analysisFeatureMask, CAM_STREAM_TYPE_ANALYSIS,
                 gCamCapability[mCameraId]->color_arrangement);
         cam_analysis_info_t analysisInfo;
-        mCommon.getAnalysisInfo(
+        rc = mCommon.getAnalysisInfo(
                 FALSE,
                 TRUE,
                 analysisFeatureMask,
                 &analysisInfo);
+        if (rc != NO_ERROR) {
+            LOGE("getAnalysisInfo failed, ret = %d", rc);
+            pthread_mutex_unlock(&mMutex);
+            return rc;
+        }
 
         mAnalysisChannel = new QCamera3SupportChannel(
                 mCameraHandle->camera_handle,
@@ -2145,9 +2152,14 @@ int QCamera3HardwareInterface::configureStreamsPerfLocked(
         setPAAFSupport(mStreamConfigInfo.postprocess_mask[mStreamConfigInfo.num_streams],
                 mStreamConfigInfo.type[mStreamConfigInfo.num_streams],
                 gCamCapability[mCameraId]->color_arrangement);
-        mCommon.getAnalysisInfo(FALSE, TRUE,
+        rc = mCommon.getAnalysisInfo(FALSE, TRUE,
                 mStreamConfigInfo.postprocess_mask[mStreamConfigInfo.num_streams],
                 &analysisInfo);
+        if (rc != NO_ERROR) {
+            LOGE("getAnalysisInfo failed, ret = %d", rc);
+            pthread_mutex_unlock(&mMutex);
+            return rc;
+        }
         mStreamConfigInfo.stream_sizes[mStreamConfigInfo.num_streams] =
                 analysisInfo.analysis_max_res;
         mStreamConfigInfo.num_streams++;
@@ -2160,7 +2172,12 @@ int QCamera3HardwareInterface::configureStreamsPerfLocked(
         setPAAFSupport(callbackFeatureMask,
                 CAM_STREAM_TYPE_CALLBACK,
                 gCamCapability[mCameraId]->color_arrangement);
-        mCommon.getAnalysisInfo(FALSE, TRUE, callbackFeatureMask, &supportInfo);
+        rc = mCommon.getAnalysisInfo(FALSE, TRUE, callbackFeatureMask, &supportInfo);
+        if (rc != NO_ERROR) {
+            LOGE("getAnalysisInfo failed, ret = %d", rc);
+            pthread_mutex_unlock(&mMutex);
+            return rc;
+        }
         mSupportChannel = new QCamera3SupportChannel(
                 mCameraHandle->camera_handle,
                 mChannelHandle,
@@ -3452,26 +3469,36 @@ int QCamera3HardwareInterface::processCaptureRequest(
 
         //IS type will be 0 unless EIS is supported. If EIS is supported
         //it could either be 1 or 4 depending on the stream and video size
-        if (setEis) {
-            if (!m_bEisSupportedSize) {
-                is_type = IS_TYPE_DIS;
-            } else {
-                is_type = IS_TYPE_EIS_2_0;
+        for (uint32_t i = 0; i < mStreamConfigInfo.num_streams; i++) {
+            if (setEis) {
+                if (!m_bEisSupportedSize) {
+                    is_type = IS_TYPE_DIS;
+                    } else {
+                    if (mStreamConfigInfo.type[i] == CAM_STREAM_TYPE_PREVIEW) {
+                        is_type = IS_TYPE_EIS_2_0;
+                    }else if (mStreamConfigInfo.type[i] == CAM_STREAM_TYPE_VIDEO) {
+                        is_type = IS_TYPE_EIS_3_0;
+                    }else {
+                        is_type = IS_TYPE_NONE;
+                    }
+                 }
+                 mStreamConfigInfo.is_type[i] = is_type;
             }
-            mStreamConfigInfo.is_type = is_type;
-        } else {
-            mStreamConfigInfo.is_type = IS_TYPE_NONE;
+            else {
+                 mStreamConfigInfo.is_type[i] = IS_TYPE_NONE;
+            }
         }
 
         ADD_SET_PARAM_ENTRY_TO_BATCH(mParameters,
                 CAM_INTF_META_STREAM_INFO, mStreamConfigInfo);
+
         int32_t tintless_value = 1;
         ADD_SET_PARAM_ENTRY_TO_BATCH(mParameters,
                 CAM_INTF_PARM_TINTLESS, tintless_value);
         //Disable CDS for HFR mode or if DIS/EIS is on.
         //CDS is a session parameter in the backend/ISP, so need to be set/reset
         //after every configure_stream
-        if((CAMERA3_STREAM_CONFIGURATION_CONSTRAINED_HIGH_SPEED_MODE == mOpMode) ||
+        if ((CAMERA3_STREAM_CONFIGURATION_CONSTRAINED_HIGH_SPEED_MODE == mOpMode) ||
                 (m_bIsVideo)) {
             int32_t cds = CAM_CDS_MODE_OFF;
             if (ADD_SET_PARAM_ENTRY_TO_BATCH(mParameters,

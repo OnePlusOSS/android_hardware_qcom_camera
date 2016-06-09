@@ -3073,10 +3073,21 @@ QCameraHeapMemory *QCamera2HardwareInterface::allocateStreamInfoBuf(
                     streamInfo->user_buf_info.frame_buf_cnt,
                     streamInfo->user_buf_info.frameInterval);
         }
-    case CAM_STREAM_TYPE_PREVIEW:
         if (mParameters.getRecordingHintValue()) {
             if(mParameters.isDISEnabled()) {
                 streamInfo->is_type = mParameters.getISType();
+            } else {
+                streamInfo->is_type = IS_TYPE_NONE;
+            }
+        }
+        if (mParameters.isSecureMode()) {
+            streamInfo->is_secure = SECURE;
+        }
+        break;
+    case CAM_STREAM_TYPE_PREVIEW:
+        if (mParameters.getRecordingHintValue()) {
+            if(mParameters.isDISEnabled()) {
+                streamInfo->is_type = mParameters.getPreviewISType();
             } else {
                 streamInfo->is_type = IS_TYPE_NONE;
             }
@@ -3504,10 +3515,8 @@ int QCamera2HardwareInterface::startPreview()
     m_perfLock.lock_rel();
 
     if (rc == NO_ERROR) {
-        if (!mParameters.isSeeMoreEnabled()) {
-            // Set power Hint for preview
-            m_perfLock.powerHint(POWER_HINT_CAM_PREVIEW, true);
-        }
+        // Set power Hint for preview
+        m_perfLock.powerHint(POWER_HINT_CAM_PREVIEW, true);
     }
 
     LOGI("X rc = %d", rc);
@@ -3708,10 +3717,8 @@ int QCamera2HardwareInterface::startRecording()
     }
 
     if (rc == NO_ERROR) {
-        if (!mParameters.isSeeMoreEnabled()) {
-            // Set power Hint for video encoding
-            m_perfLock.powerHint(POWER_HINT_VIDEO_ENCODE, true);
-        }
+        // Set power Hint for video encoding
+        m_perfLock.powerHint(POWER_HINT_VIDEO_ENCODE, true);
     }
 
     LOGI("X rc = %d", rc);
@@ -6755,15 +6762,18 @@ int32_t QCamera2HardwareInterface::addStreamToChannel(QCameraChannel *pChannel,
 
         featureMask = 0;
         mParameters.getStreamPpMask(CAM_STREAM_TYPE_ANALYSIS, featureMask);
-        mParameters.getAnalysisInfo(
+        rc = mParameters.getAnalysisInfo(
                 ((mParameters.getRecordingHintValue() == true) &&
                  mParameters.fdModeInVideo()),
                 FALSE,
                 featureMask,
                 &analysisInfo);
+        if (rc != NO_ERROR) {
+            LOGE("getAnalysisInfo failed, ret = %d", rc);
+            return rc;
+        }
 
-        padding_info =
-                analysisInfo.analysis_padding_info;
+        padding_info = analysisInfo.analysis_padding_info;
     } else {
         padding_info =
                 gCamCapability[mCameraId]->padding_info;
