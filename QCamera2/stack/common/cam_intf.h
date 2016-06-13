@@ -422,7 +422,7 @@ typedef struct{
     int32_t optical_black_regions[MAX_OPTICAL_BLACK_REGIONS * 4];
     /* Count is K/4 */
     uint8_t optical_black_region_count;
-
+    char sensor_name[128];
 } cam_capability_t;
 
 typedef enum {
@@ -650,6 +650,13 @@ typedef struct {
             (NULL)); \
         if (NULL != META_PTR_NAME) \
 
+#define IF_META_NOT_AVAILABLE(META_TYPE, META_PTR_NAME, META_ID, TABLE_PTR) \
+        META_TYPE *META_PTR_NAME = \
+        (((NULL != TABLE_PTR) && (TABLE_PTR->is_valid[META_ID])) ? \
+            (&TABLE_PTR->data.member_variable_##META_ID[ 0 ]) : \
+            (NULL)); \
+        if (!META_PTR_NAME) \
+
 #define ADD_SET_PARAM_ENTRY_TO_BATCH(TABLE_PTR, META_ID, DATA) \
     ((NULL != TABLE_PTR) ? \
     ((TABLE_PTR->data.member_variable_##META_ID[ 0 ] = DATA), \
@@ -746,6 +753,7 @@ typedef struct {
     INCLUDE(CAM_INTF_META_CHROMATIX_LITE_AF,            cam_chromatix_lite_af_stats_t,  1);
     INCLUDE(CAM_INTF_META_CHROMATIX_LITE_ASD,           cam_chromatix_lite_asd_stats_t, 1);
     INCLUDE(CAM_INTF_BUF_DIVERT_INFO,                   cam_buf_divert_info_t,          1);
+    INCLUDE(CAM_INTF_PARM_FACE_BEAUTY_LEVEL,            uint32_t,                    1);
 
     /* Specific to HAL3 */
     INCLUDE(CAM_INTF_META_FRAME_NUMBER_VALID,           int32_t,                     1);
@@ -886,7 +894,6 @@ typedef struct {
     INCLUDE(CAM_INTF_PARM_BURST_LED_ON_PERIOD,          uint32_t,                    1);
     INCLUDE(CAM_INTF_PARM_LONGSHOT_ENABLE,              int8_t,                      1);
     INCLUDE(CAM_INTF_PARM_TONE_MAP_MODE,                uint32_t,                    1);
-
     /* HAL3 specific */
     INCLUDE(CAM_INTF_META_STREAM_INFO,                  cam_stream_size_info_t,      1);
     INCLUDE(CAM_INTF_META_AEC_MODE,                     uint32_t,                    1);
@@ -934,6 +941,8 @@ typedef struct {
     INCLUDE(CAM_INTF_META_IMG_DYN_FEAT,                 cam_dyn_img_data_t,          1);
     INCLUDE(CAM_INTF_PARM_MANUAL_CAPTURE_TYPE,          cam_manual_capture_type,     1);
     INCLUDE(CAM_INTF_AF_STATE_TRANSITION,               uint8_t,                     1);
+    INCLUDE(CAM_INTF_META_FV,                           int,                         1);
+    INCLUDE(CAM_INTF_META_FRAME_SKIP,                   cam_frame_idx_range_t,       1);
 } metadata_data_t;
 
 /* Update clear_metadata_buffer() function when a new is_xxx_valid is added to
