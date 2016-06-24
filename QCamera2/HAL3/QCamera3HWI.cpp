@@ -4058,8 +4058,9 @@ no_error:
     }
     if (blob_request && mRawDumpChannel) {
         LOGD("Trigger Raw based on blob request if Raw dump is enabled");
-        streamsArray.stream_request[streamsArray.num_streams++].streamID =
+        streamsArray.stream_request[streamsArray.num_streams].streamID =
             mRawDumpChannel->getStreamID(mRawDumpChannel->getStreamTypeMask());
+        streamsArray.stream_request[streamsArray.num_streams++].buf_index = CAM_FREERUN_IDX;
     }
 
     if(request->input_buffer == NULL) {
@@ -4259,7 +4260,7 @@ no_error:
                 for (j = 0; j < streamsArray.num_streams; j++) {
                     if (streamsArray.stream_request[j].streamID == streamId) {
                       if (mOpMode == CAMERA3_STREAM_CONFIGURATION_CONSTRAINED_HIGH_SPEED_MODE)
-                          streamsArray.stream_request[j].buf_index = 0xFFFFFFFF;
+                          streamsArray.stream_request[j].buf_index = CAM_FREERUN_IDX;
                       else
                           streamsArray.stream_request[j].buf_index = indexUsed;
                         break;
@@ -4290,7 +4291,7 @@ no_error:
             for (j = 0; j < streamsArray.num_streams; j++) {
                 if (streamsArray.stream_request[j].streamID == streamId) {
                     if (mOpMode == CAMERA3_STREAM_CONFIGURATION_CONSTRAINED_HIGH_SPEED_MODE)
-                        streamsArray.stream_request[j].buf_index = 0xFFFFFFFF;
+                        streamsArray.stream_request[j].buf_index = CAM_FREERUN_IDX;
                     else
                         streamsArray.stream_request[j].buf_index = indexUsed;
                     break;
@@ -4317,7 +4318,7 @@ no_error:
             for (j = 0; j < streamsArray.num_streams; j++) {
                 if (streamsArray.stream_request[j].streamID == streamId) {
                     if (mOpMode == CAMERA3_STREAM_CONFIGURATION_CONSTRAINED_HIGH_SPEED_MODE)
-                        streamsArray.stream_request[j].buf_index = 0xFFFFFFFF;
+                        streamsArray.stream_request[j].buf_index = CAM_FREERUN_IDX;
                     else
                         streamsArray.stream_request[j].buf_index = indexUsed;
                     break;
