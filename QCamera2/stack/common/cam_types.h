@@ -121,7 +121,7 @@
 
 #define RELCAM_CALIB_ROT_MATRIX_MAX 9
 #define RELCAM_CALIB_SURFACE_PARMS_MAX 32
-#define RELCAM_CALIB_RESERVED_MAX 52
+#define RELCAM_CALIB_RESERVED_MAX 50
 
 #define MAX_NUM_CAMERA_PER_BUNDLE    2 /* Max number of cameras per bundle */
 #define EXTRA_FRAME_SYNC_BUFFERS     4 /* Extra frame sync buffers in dc mode*/
@@ -2157,6 +2157,8 @@ typedef enum {
     CAM_INTF_META_ISP_SENSITIVITY,
     /* Param for enabling instant aec*/
     CAM_INTF_PARM_INSTANT_AEC,
+    /* Param for tracking previous reprocessing activity */
+    CAM_INTF_META_REPROCESS_FLAGS,
     CAM_INTF_PARM_MAX
 } cam_intf_parm_type_t;
 
@@ -2718,6 +2720,17 @@ typedef struct {
     /* Analysis recommended size */
     cam_dimension_t analysis_recommended_res;
 } cam_analysis_info_t;
+
+typedef struct {
+    /* Information for DDM */
+    cam_stream_crop_info_t   sensor_crop_info; /* sensor crop info */
+    cam_stream_crop_info_t   camif_crop_info; /* CAMIF crop info */
+    cam_stream_crop_info_t   isp_crop_info; /* ISP crop info */
+    cam_stream_crop_info_t   cpp_crop_info; /* CPP crop info */
+    cam_focal_length_ratio_t af_focal_length_ratio; /* AF focal length ratio */
+    int32_t                  pipeline_flip; /* current pipeline flip and rotational parameters */
+    cam_rotation_info_t      rotation_info; /* rotation information */
+} cam_ddm_info_t;
 
 /***********************************
 * ENUM definition for custom parameter type
