@@ -5749,9 +5749,11 @@ int32_t QCameraParameters::initDefaultParameters()
     struct sysinfo info;
     sysinfo(&info);
 
-    LOGH("totalram = %ld, freeram = %ld ", info.totalram,
-        info.freeram);
-    if (info.totalram > TOTAL_RAM_SIZE_512MB) {
+    uint64_t totalram = info.totalram * info.mem_unit;
+    uint64_t freeram = info.freeram * info.mem_unit;
+
+    LOGH("totalram = %ld, freeram = %ld ", totalram, freeram);
+    if (totalram > TOTAL_RAM_SIZE_512MB) {
         set(KEY_QC_ZSL_HDR_SUPPORTED, VALUE_TRUE);
     } else {
         m_bIsLowMemoryDevice = true;
