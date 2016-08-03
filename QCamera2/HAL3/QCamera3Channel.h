@@ -121,6 +121,7 @@ public:
             cam_frame_len_offset_t offset, uint8_t name);
     bool isUBWCEnabled();
     cam_format_t getStreamDefaultFormat(cam_stream_type_t type);
+    virtual int32_t timeoutFrame(__unused uint32_t frameNumber) = 0;
 
     void *mUserData;
     cam_padding_info_t mPaddingInfo;
@@ -223,6 +224,7 @@ public:
     int32_t checkStreamCbErrors(mm_camera_super_buf_t *super_frame,
             QCamera3Stream *stream);
     int32_t getStreamSize(cam_dimension_t &dim);
+    int32_t timeoutFrame(uint32_t frameNumber);
 
     QCamera3PostProcessor m_postprocessor; // post processor
     void showDebugFPS(int32_t streamType);
@@ -323,6 +325,7 @@ public:
     virtual void putStreamBufs();
     virtual int32_t registerBuffer(buffer_handle_t * /*buffer*/, cam_is_type_t /*isType*/)
             { return NO_ERROR; };
+    virtual int32_t timeoutFrame(__unused uint32_t frameNumber) {return NO_ERROR; };
 
 private:
     QCamera3StreamMem *mMemory;
@@ -385,6 +388,7 @@ public:
     virtual void putStreamBufs();
     virtual int32_t registerBuffer(buffer_handle_t * /*buffer*/, cam_is_type_t /*isType*/)
             { return NO_ERROR; };
+    virtual int32_t timeoutFrame(__unused uint32_t frameNumber) {return NO_ERROR;};
     virtual int32_t request(buffer_handle_t *buffer, uint32_t frameNumber,
             int &indexUsed);
     void dumpRawSnapshot(mm_camera_buf_def_t *frame);
@@ -563,6 +567,7 @@ public:
     QCamera3Stream *getStreamBySrcHandle(uint32_t srcHandle);
     QCamera3Stream *getSrcStreamBySrcHandle(uint32_t srcHandle);
     virtual int32_t registerBuffer(buffer_handle_t * buffer, cam_is_type_t isType);
+    virtual int32_t timeoutFrame(__unused uint32_t frameNumber) {return NO_ERROR;};
 
 public:
     void *inputChHandle;
@@ -624,6 +629,7 @@ public:
     virtual void putStreamBufs();
     virtual int32_t registerBuffer(buffer_handle_t * /*buffer*/, cam_is_type_t /*isType*/)
             { return NO_ERROR; };
+    virtual int32_t timeoutFrame(__unused uint32_t frameNumber) {return NO_ERROR;};
 
     static cam_dimension_t kDim;
 private:
