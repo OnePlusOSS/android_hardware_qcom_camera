@@ -1616,20 +1616,6 @@ void sort_camera_info(int num_cam)
         }
     }
 
-    /* save the aux back cameras info*/
-    for (i = 0; i < num_cam; i++) {
-        if ((g_cam_ctrl.info[i].facing == CAMERA_FACING_BACK) &&
-                (g_cam_ctrl.cam_type[i] == CAM_TYPE_AUX)) {
-            temp_info[idx] = g_cam_ctrl.info[i];
-            temp_type[idx] = g_cam_ctrl.cam_type[i];
-            temp_mode[idx] = g_cam_ctrl.cam_mode[i];
-            temp_is_yuv[idx] = g_cam_ctrl.is_yuv[i];
-            LOGD("Found Back Aux Camera: i: %d idx: %d", i, idx);
-            memcpy(temp_dev_name[idx++],g_cam_ctrl.video_dev_name[i],
-                    MM_CAMERA_DEV_NAME_LEN);
-        }
-    }
-
     /* then save the front cameras info*/
     for (i = 0; i < num_cam; i++) {
         if ((g_cam_ctrl.info[i].facing == CAMERA_FACING_FRONT) &&
@@ -1639,6 +1625,20 @@ void sort_camera_info(int num_cam)
             temp_mode[idx] = g_cam_ctrl.cam_mode[i];
             temp_is_yuv[idx] = g_cam_ctrl.is_yuv[i];
             LOGD("Found Front Main Camera: i: %d idx: %d", i, idx);
+            memcpy(temp_dev_name[idx++],g_cam_ctrl.video_dev_name[i],
+                    MM_CAMERA_DEV_NAME_LEN);
+        }
+    }
+
+    /* save the aux back cameras info*/
+    for (i = 0; i < num_cam; i++) {
+        if ((g_cam_ctrl.info[i].facing == CAMERA_FACING_BACK) &&
+                (g_cam_ctrl.cam_type[i] == CAM_TYPE_AUX)) {
+            temp_info[idx] = g_cam_ctrl.info[i];
+            temp_type[idx] = g_cam_ctrl.cam_type[i];
+            temp_mode[idx] = g_cam_ctrl.cam_mode[i];
+            temp_is_yuv[idx] = g_cam_ctrl.is_yuv[i];
+            LOGD("Found Back Aux Camera: i: %d idx: %d", i, idx);
             memcpy(temp_dev_name[idx++],g_cam_ctrl.video_dev_name[i],
                     MM_CAMERA_DEV_NAME_LEN);
         }
