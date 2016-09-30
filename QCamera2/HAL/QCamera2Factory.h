@@ -46,6 +46,7 @@ public:
 
     static int get_number_of_cameras();
     static int get_camera_info(int camera_id, struct camera_info *info);
+    static int set_torch_mode(const char* camera_id, bool on);
 
 private:
     int getNumberOfCameras();
@@ -54,10 +55,13 @@ private:
     static int camera_device_open(const struct hw_module_t *module, const char *id,
                 struct hw_device_t **hw_device);
 
+    int setTorchMode(const char* camera_id, bool on);
 public:
     static struct hw_module_methods_t mModuleMethods;
 
 private:
+    int torch0Fd;
+    int torch1Fd;
     int mNumOfCameras;
 };
 

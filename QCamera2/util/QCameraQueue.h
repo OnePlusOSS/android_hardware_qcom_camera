@@ -32,6 +32,8 @@
 
 #include <pthread.h>
 #include "cam_list.h"
+#include <stdlib.h>
+#include <string.h>
 
 namespace qcamera {
 

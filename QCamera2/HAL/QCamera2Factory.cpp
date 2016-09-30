@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2014, The Linux Foundataion. All rights reserved.
+/* Copyright (c) 2012-2013, The Linux Foundataion. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -135,7 +135,7 @@ int QCamera2Factory::getCameraInfo(int camera_id, struct camera_info *info)
         return INVALID_OPERATION;
     }
 
-    rc = QCamera2HardwareInterface::getCapabilities((uint32_t)camera_id, info);
+    rc = QCamera2HardwareInterface::getCapabilities(camera_id, info);
     ALOGV("%s: X", __func__);
     return rc;
 }
@@ -160,7 +160,7 @@ int QCamera2Factory::cameraDeviceOpen(int camera_id,
     if (camera_id < 0 || camera_id >= mNumOfCameras)
         return BAD_VALUE;
 
-    QCamera2HardwareInterface *hw = new QCamera2HardwareInterface((uint32_t)camera_id);
+    QCamera2HardwareInterface *hw = new QCamera2HardwareInterface(camera_id);
     if (!hw) {
         ALOGE("Allocation of hardware interface failed");
         return NO_MEMORY;

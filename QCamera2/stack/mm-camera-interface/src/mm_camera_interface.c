@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2015, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -36,6 +36,8 @@
 #include <poll.h>
 #include <linux/media.h>
 #include <signal.h>
+#include <cutils/properties.h>
+#include <stdlib.h>
 #include <media/msm_cam_sensor.h>
 #include <cutils/properties.h>
 #include <stdlib.h>
@@ -625,7 +627,7 @@ static int32_t mm_camera_intf_link_stream(uint32_t camera_handle,
         uint32_t stream_id,
         uint32_t linked_ch_id)
 {
-    int32_t id = 0;
+    uint32_t id = 0;
     mm_camera_obj_t * my_obj = NULL;
 
     CDBG("%s : E handle = %d ch_id = %d",
@@ -637,7 +639,7 @@ static int32_t mm_camera_intf_link_stream(uint32_t camera_handle,
     if(my_obj) {
         pthread_mutex_lock(&my_obj->cam_lock);
         pthread_mutex_unlock(&g_intf_lock);
-        id = (int32_t)mm_camera_link_stream(my_obj, ch_id, stream_id, linked_ch_id);
+        id = mm_camera_link_stream(my_obj, ch_id, stream_id, linked_ch_id);
     } else {
         pthread_mutex_unlock(&g_intf_lock);
     }
@@ -1067,7 +1069,7 @@ static int32_t mm_camera_intf_configure_notify_mode(uint32_t camera_handle,
 static int32_t mm_camera_intf_map_buf(uint32_t camera_handle,
                                       uint8_t buf_type,
                                       int fd,
-                                      size_t size)
+                                      uint32_t size)
 {
     int32_t rc = -1;
     mm_camera_obj_t * my_obj = NULL;
@@ -1242,7 +1244,7 @@ static int32_t mm_camera_intf_map_stream_buf(uint32_t camera_handle,
                                              uint32_t buf_idx,
                                              int32_t plane_idx,
                                              int fd,
-                                             size_t size)
+                                             uint32_t size)
 {
     int32_t rc = -1;
     mm_camera_obj_t * my_obj = NULL;
@@ -1335,12 +1337,13 @@ void get_sensor_info()
     int dev_fd = 0;
     struct media_device_info mdev_info;
     int num_media_devices = 0;
-    size_t num_cameras = 0;
+    uint8_t num_cameras = 0;
 
     CDBG("%s : E", __func__);
     /* lock the mutex */
     while (1) {
         char dev_name[32];
+        int num_entities;
         snprintf(dev_name, sizeof(dev_name), "/dev/media%d", num_media_devices);
         dev_fd = open(dev_name, O_RDWR | O_NONBLOCK);
         if (dev_fd <= 0) {
@@ -1364,12 +1367,12 @@ void get_sensor_info()
             continue;
         }
 
-        unsigned int num_entities = 1;
+        num_entities = 1;
         while (1) {
             struct media_entity_desc entity;
-            uint32_t temp;
-            uint32_t mount_angle;
-            uint32_t facing;
+            unsigned long temp;
+            unsigned int mount_angle;
+            unsigned int facing;
 
             memset(&entity, 0, sizeof(entity));
             entity.id = num_entities++;
@@ -1384,17 +1387,17 @@ void get_sensor_info()
                 temp = entity.flags >> 8;
                 mount_angle = (temp & 0xFF) * 90;
                 facing = (temp >> 8);
-                ALOGD("index = %u flag = %x mount_angle = %u facing = %u\n",
-                    (unsigned int)num_cameras, (unsigned int)temp,
-                    (unsigned int)mount_angle, (unsigned int)facing);
-                g_cam_ctrl.info[num_cameras].facing = (int)facing;
-                g_cam_ctrl.info[num_cameras].orientation = (int)mount_angle;
+                ALOGD("index = %d flag = %x mount_angle = %d facing = %d\n"
+                    , num_cameras, (unsigned int)temp, (unsigned int)mount_angle,
+                    (unsigned int)facing);
+                g_cam_ctrl.info[num_cameras].facing = facing;
+                g_cam_ctrl.info[num_cameras].orientation = mount_angle;
                 num_cameras++;
                 continue;
             }
         }
 
-        CDBG("%s: dev_info[id=%zu,name='%s']\n",
+        CDBG("%s: dev_info[id=%d,name='%s']\n",
             __func__, num_cameras, g_cam_ctrl.video_dev_name[num_cameras]);
 
         close(dev_fd);
@@ -1403,46 +1406,6 @@ void get_sensor_info()
 
     /* unlock the mutex */
     CDBG("%s: num_cameras=%d\n", __func__, g_cam_ctrl.num_cam);
-    return;
-}
-
-/*===========================================================================
- * FUNCTION   : sort_camera_info
- *
- * DESCRIPTION: sort camera info to keep back cameras idx is smaller than front cameras idx
- *
- * PARAMETERS : number of cameras
- *
- * RETURN     :
- *==========================================================================*/
-void sort_camera_info(int num_cam)
-{
-    int idx = 0, i;
-    struct camera_info temp_info[MM_CAMERA_MAX_NUM_SENSORS];
-    char temp_dev_name[MM_CAMERA_MAX_NUM_SENSORS][MM_CAMERA_DEV_NAME_LEN];
-    memset(temp_info, 0, sizeof(temp_info));
-    memset(temp_dev_name, 0, sizeof(temp_dev_name));
-
-    /* firstly save the back cameras info*/
-    for (i = 0; i < num_cam; i++) {
-        if (g_cam_ctrl.info[i].facing == CAMERA_FACING_BACK) {
-            temp_info[idx] = g_cam_ctrl.info[i];
-            memcpy(temp_dev_name[idx++],g_cam_ctrl.video_dev_name[i],
-                MM_CAMERA_DEV_NAME_LEN);
-        }
-    }
-
-    /* then save the front cameras info*/
-    for (i = 0; i < num_cam; i++) {
-        if (g_cam_ctrl.info[i].facing == CAMERA_FACING_FRONT) {
-            temp_info[idx] = g_cam_ctrl.info[i];
-            memcpy(temp_dev_name[idx++],g_cam_ctrl.video_dev_name[i],
-                MM_CAMERA_DEV_NAME_LEN);
-        }
-    }
-
-    memcpy(g_cam_ctrl.info, temp_info, sizeof(temp_info));
-    memcpy(g_cam_ctrl.video_dev_name, temp_dev_name, sizeof(temp_dev_name));
     return;
 }
 
@@ -1461,7 +1424,7 @@ uint8_t get_num_of_cameras()
     int dev_fd = 0;
     struct media_device_info mdev_info;
     int num_media_devices = 0;
-    int8_t num_cameras = 0;
+    uint8_t num_cameras = 0;
     char subdev_name[32];
     int32_t sd_fd = 0;
     struct sensor_init_cfg_data cfg;
@@ -1469,7 +1432,8 @@ uint8_t get_num_of_cameras()
     uint32_t temp;
     uint32_t log_level;
     uint32_t debug_mask;
-    int8_t fixed_num_cameras = 0;
+    char temp_dev_name[MM_CAMERA_DEV_NAME_LEN];
+    struct camera_info temp_info;
 
     /*  Higher 4 bits : Value of Debug log level (Default level is 1 to print all CDBG_HIGH)
         Lower 28 bits : Control mode for sub module logging(Only 3 sub modules in HAL)
@@ -1477,7 +1441,7 @@ uint8_t get_num_of_cameras()
                         0x10 for mm-camera-interface
                         0x100 for mm-jpeg-interface  */
     property_get("persist.camera.hal.debug.mask", prop, "268435463"); // 0x10000007=268435463
-    temp = (uint32_t) atoi(prop);
+    temp = atoi(prop);
     log_level = ((temp >> 28) & 0xF);
     debug_mask = (temp & HAL_DEBUG_MASK_MM_CAMERA_INTERFACE);
     if (debug_mask > 0)
@@ -1489,14 +1453,15 @@ uint8_t get_num_of_cameras()
 
     property_get("vold.decrypt", prop, "0");
     int decrypt = atoi(prop);
-    if (decrypt == 1)
-     return 0;
+    if (decrypt == 1) {
+        return 0;
+    }
 
     /* lock the mutex */
     pthread_mutex_lock(&g_intf_lock);
 
     while (1) {
-        uint32_t num_entities = 1U;
+        int32_t num_entities = 1;
         char dev_name[32];
 
         snprintf(dev_name, sizeof(dev_name), "/dev/media%d", num_media_devices);
@@ -1524,14 +1489,14 @@ uint8_t get_num_of_cameras()
             struct media_entity_desc entity;
             memset(&entity, 0, sizeof(entity));
             entity.id = num_entities++;
-            CDBG_ERROR("entity id %d", entity.id);
+            CDBG_HIGH("entity id %d", entity.id);
             rc = ioctl(dev_fd, MEDIA_IOC_ENUM_ENTITIES, &entity);
             if (rc < 0) {
                 CDBG_ERROR("Done enumerating media entities");
                 rc = 0;
                 break;
             }
-            CDBG_ERROR("entity name %s type %d group id %d",
+            CDBG_HIGH("entity name %s type %d group id %d",
                 entity.name, entity.type, entity.group_id);
             if (entity.type == MEDIA_ENT_T_V4L2_SUBDEV &&
                 entity.group_id == MSM_CAMERA_SUBDEV_SENSOR_INIT) {
@@ -1561,9 +1526,8 @@ uint8_t get_num_of_cameras()
 
     num_media_devices = 0;
     while (1) {
-        uint32_t num_entities = 1U;
         char dev_name[32];
-
+        int num_entities;
         snprintf(dev_name, sizeof(dev_name), "/dev/media%d", num_media_devices);
         dev_fd = open(dev_name, O_RDWR | O_NONBLOCK);
         if (dev_fd <= 0) {
@@ -1587,6 +1551,7 @@ uint8_t get_num_of_cameras()
             continue;
         }
 
+        num_entities = 1;
         while (1) {
             struct media_entity_desc entity;
             memset(&entity, 0, sizeof(entity));
@@ -1605,39 +1570,33 @@ uint8_t get_num_of_cameras()
         }
 
         CDBG("%s: dev_info[id=%d,name='%s']\n",
-            __func__, (int)num_cameras, g_cam_ctrl.video_dev_name[num_cameras]);
+            __func__, num_cameras, g_cam_ctrl.video_dev_name[num_cameras]);
 
         num_cameras++;
         close(dev_fd);
         dev_fd = 0;
     }
-
-    /* In L AOSP MAX camera defined as 4, compared to 2 in KK
-     * Due to that and multimode architecture, camera switching on 8x26 target
-     * will fail on KK-based camera as there are non-zero specific profile
-     * exists in dtsi file. These profiles are needed for JB-based camera.
-     * To support JB and KK camera projects with common kernel, we have
-     * introduced a setprop where user can set max number of cameras.
-     * This'll resolve the issue for accessing incorrect camera profile.
-    */
-    property_get("persist.camera.num_cameras",prop,"0");
-    fixed_num_cameras = atoi(prop);
-    if ( (fixed_num_cameras > 0)&& (num_cameras > fixed_num_cameras)) {
-        num_cameras = fixed_num_cameras;
-        CDBG_HIGH("%s: restricted num of cameras to: %d\n",__func__, num_cameras);
-    }
-
     g_cam_ctrl.num_cam = num_cameras;
 
     get_sensor_info();
-    sort_camera_info(g_cam_ctrl.num_cam);
+
+    /*if front camera probe earlier than back camera, switch front camera and back camera dev_name and info*/
+    if (g_cam_ctrl.info[0].facing == CAMERA_FACING_FRONT && g_cam_ctrl.num_cam > 1) {
+        memcpy(temp_dev_name, g_cam_ctrl.video_dev_name[0], sizeof(temp_dev_name));
+        memcpy(g_cam_ctrl.video_dev_name[0], g_cam_ctrl.video_dev_name[1], sizeof(temp_dev_name));
+        memcpy(g_cam_ctrl.video_dev_name[1], temp_dev_name, sizeof(temp_dev_name));
+        memcpy(&temp_info, &g_cam_ctrl.info[0], sizeof(temp_info));
+        memcpy(&g_cam_ctrl.info[0], &g_cam_ctrl.info[1], sizeof(temp_info));
+        memcpy(&g_cam_ctrl.info[1], &temp_info, sizeof(temp_info));
+    }
+
     /* unlock the mutex */
     pthread_mutex_unlock(&g_intf_lock);
-    CDBG("%s: num_cameras=%d\n", __func__, (int)g_cam_ctrl.num_cam);
-    return(uint8_t)g_cam_ctrl.num_cam;
+    CDBG("%s: num_cameras=%d\n", __func__, g_cam_ctrl.num_cam);
+    return g_cam_ctrl.num_cam;
 }
 
-struct camera_info *get_cam_info(uint32_t camera_id)
+struct camera_info *get_cam_info(int camera_id)
 {
     return &g_cam_ctrl.info[camera_id];
 }
@@ -1673,14 +1632,14 @@ static int32_t mm_camera_intf_process_advanced_capture(uint32_t camera_handle,
     if(my_obj) {
         pthread_mutex_lock(&my_obj->cam_lock);
         pthread_mutex_unlock(&g_intf_lock);
-        rc = mm_camera_channel_advanced_capture(my_obj, advanced_capture_type,
-            ch_id, (uint32_t)start_flag);
+        rc = mm_camera_channel_advanced_capture(my_obj, advanced_capture_type, ch_id, start_flag);
     } else {
         pthread_mutex_unlock(&g_intf_lock);
     }
     CDBG("%s: X ", __func__);
     return rc;
 }
+
 
 /* camera ops v-table */
 static mm_camera_ops_t mm_camera_ops = {
@@ -1718,6 +1677,19 @@ static mm_camera_ops_t mm_camera_ops = {
     .process_advanced_capture = mm_camera_intf_process_advanced_capture
 };
 
+int have_camera_opened(){
+
+    int rc = 0;
+    int i = 0;
+    for (i = 0; i < g_cam_ctrl.num_cam; i++) {
+        if(NULL != g_cam_ctrl.cam_obj[i] && g_cam_ctrl.cam_obj[i]->ref_count > 0){
+            rc = 1;
+            break;
+        }
+    }
+    return rc;
+}
+
 /*===========================================================================
  * FUNCTION   : camera_open
  *
@@ -1733,6 +1705,7 @@ mm_camera_vtbl_t * camera_open(uint8_t camera_idx)
 {
     int32_t rc = 0;
     mm_camera_obj_t* cam_obj = NULL;
+
 
     CDBG("%s: E camera_idx = %d\n", __func__, camera_idx);
     if (camera_idx >= g_cam_ctrl.num_cam) {
@@ -1764,14 +1737,8 @@ mm_camera_vtbl_t * camera_open(uint8_t camera_idx)
     cam_obj->vtbl.camera_handle = cam_obj->my_hdl; /* set handler */
     cam_obj->vtbl.ops = &mm_camera_ops;
     pthread_mutex_init(&cam_obj->cam_lock, NULL);
-    /* unlock global interface lock, if not, in dual camera use case,
-      * current open will block operation of another opened camera obj*/
-    pthread_mutex_lock(&cam_obj->cam_lock);
-    pthread_mutex_unlock(&g_intf_lock);
 
     rc = mm_camera_open(cam_obj);
-
-    pthread_mutex_lock(&g_intf_lock);
     if(rc != 0) {
         CDBG_ERROR("%s: mm_camera_open err = %d", __func__, rc);
         pthread_mutex_destroy(&cam_obj->cam_lock);

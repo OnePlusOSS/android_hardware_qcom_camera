@@ -35,10 +35,8 @@
 
 #define LOWER(a)               ((a) & 0xFFFF)
 #define UPPER(a)               (((a)>>16) & 0xFFFF)
-#define CHANGE_ENDIAN_16(a) \
-        ((uint16_t)((0x00FF & ((a)>>8)) | (0xFF00 & ((a)<<8))))
-#define ROUND(a) \
-        ((a >= 0) ? (uint32_t)(a + 0.5) : (uint32_t)(a - 0.5))
+#define CHANGE_ENDIAN_16(a)  ((0x00FF & ((a)>>8)) | (0xFF00 & ((a)<<8)))
+#define ROUND(a)((a >= 0) ? (long)(a + 0.5) : (long)(a - 0.5))
 
 #define AAA_EXIF_BUF_SIZE   10
 #define AE_EXIF_SIZE        2
@@ -67,7 +65,7 @@ int32_t addExifEntry(QOMX_EXIF_INFO *p_exif_info, exif_tag_id_t tagid,
   exif_tag_type_t type, uint32_t count, void *data)
 {
     int32_t rc = 0;
-    uint32_t numOfEntries = (uint32_t)p_exif_info->numOfEntries;
+    int32_t numOfEntries = p_exif_info->numOfEntries;
     QEXIF_INFO_DATA *p_info_data = p_exif_info->exif_data;
     if(numOfEntries >= MAX_EXIF_TABLE_ENTRIES) {
         ALOGE("%s: Number of entries exceeded limit", __func__);
@@ -318,6 +316,7 @@ int process_sensor_data(cam_sensor_params_t *p_sensor_params,
     ALOGE("%s:%d]: Error adding Exif Entry", __func__, __LINE__);
   }
 
+
   short flash_tag = -1;
   uint8_t flash_fired = 0;
   uint8_t strobe_state = 0;
@@ -408,12 +407,12 @@ int process_3a_data(cam_ae_params_t *p_ae_params, cam_awb_params_t *p_awb_params
     /* increment exif_byte_cnt, so that this info will be filled with 0s */
     exif_byte_cnt += AE_EXIF_SIZE;
   } else {
-    ALOGE("%s:%d] exp_time %f, iso_value %d exp idx: %d, lc: %d, gain: %f", __func__, __LINE__,
+    CDBG_HIGH("%s:%d] exp_time %f, iso_value %d exp idx: %d, lc: %d, gain: %f", __func__, __LINE__,
       p_ae_params->exp_time, p_ae_params->iso_value, p_ae_params->exp_index,
       p_ae_params->line_count, p_ae_params->real_gain);
 
     /* Exposure time */
-    if (0.0f >= p_ae_params->exp_time) {
+    if (p_ae_params->exp_time == 0) {
       val_rat.num = 0;
       val_rat.denom = 0;
     } else {
@@ -432,7 +431,7 @@ int process_3a_data(cam_ae_params_t *p_ae_params, cam_awb_params_t *p_awb_params
     /* Shutter Speed*/
     if (p_ae_params->exp_time > 0) {
       shutter_speed_value = log10(1/p_ae_params->exp_time)/log10(2);
-      val_srat.num = (int32_t)(shutter_speed_value * 1000.0f);
+      val_srat.num = shutter_speed_value * 1000;
       val_srat.denom = 1000;
     } else {
       val_srat.num = 0;
@@ -446,7 +445,7 @@ int process_3a_data(cam_ae_params_t *p_ae_params, cam_awb_params_t *p_awb_params
 
     /* ISO */
     short val_short;
-    val_short = (short) p_ae_params->iso_value;
+    val_short = p_ae_params->iso_value;
     rc = addExifEntry(exif_info, EXIFTAGID_ISO_SPEED_RATING, EXIF_SHORT,
       sizeof(val_short)/2, &val_short);
     if (rc) {
@@ -454,7 +453,7 @@ int process_3a_data(cam_ae_params_t *p_ae_params, cam_awb_params_t *p_awb_params
     }
 
     /* Gain */
-    val_short = (short) p_ae_params->real_gain;
+    val_short = p_ae_params->real_gain;
     rc = addExifEntry(exif_info, EXIFTAGID_GAIN_CONTROL, EXIF_SHORT,
       sizeof(val_short)/2, &val_short);
     if (rc) {
@@ -543,11 +542,10 @@ int process_meta_data(cam_metadata_info_t *p_meta, QOMX_EXIF_INFO *exif_info,
   cam_auto_focus_data_t *p_focus_data = p_meta->is_focus_valid ?
     &p_meta->focus_data : &p_cam_exif_params->af_params;
 
-  if(p_cam_exif_params->sensor_params.sens_type != CAM_SENSOR_YUV) {
-      rc = process_3a_data(p_ae_params, p_awb_params, p_focus_data, exif_info);
-      if (rc) {
-        ALOGE("%s %d: Failed to extract 3a params", __func__, __LINE__);
-      }
+
+  rc = process_3a_data(p_ae_params, p_awb_params, p_focus_data, exif_info);
+  if (rc) {
+    ALOGE("%s %d: Failed to extract 3a params", __func__, __LINE__);
   }
 
   cam_sensor_params_t *p_sensor_params = p_meta->is_sensor_params_valid ?

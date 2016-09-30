@@ -144,6 +144,7 @@ typedef enum {
     QCAMERA_INTERNAL_EVT_CROP_INFO,          // crop info
     QCAMERA_INTERNAL_EVT_ASD_UPDATE,         // asd update result
     QCAMERA_INTERNAL_EVT_AWB_UPDATE,         // awb update result
+    QCAMERA_INTERNAL_EVT_ZSL_CAPTURE_DONE,   // ZSL capture done event
     QCAMERA_INTERNAL_EVT_MAX
 } qcamera_internal_evt_type_t;
 
@@ -169,10 +170,8 @@ public:
     int32_t procEvt(qcamera_sm_evt_enum_t evt, void *evt_payload);
 
     bool isPreviewRunning(); // check if preview is running
-    bool isPreviewReady(); // check if preview is ready
     bool isCaptureRunning(); // check if image capture is running
     bool isNonZSLCaptureRunning(); // check if image capture is running in non ZSL mode
-    void releaseThread();
 
 private:
     typedef enum {

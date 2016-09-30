@@ -3,7 +3,6 @@ LOCAL_PATH := $(call my-dir)
 include $(CLEAR_VARS)
 
 LOCAL_CFLAGS+= -D_ANDROID_
-LOCAL_CFLAGS += -Wall -Wextra -Werror -Wno-unused-parameter
 
 LOCAL_C_INCLUDES := $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr/include
 LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr/include/media
@@ -19,10 +18,6 @@ LOCAL_C_INCLUDES += \
 
 ifeq ($(strip $(TARGET_USES_ION)),true)
     LOCAL_CFLAGS += -DUSE_ION
-endif
-
-ifneq ($(call is-platform-sdk-version-at-least,20),true)
-LOCAL_CFLAGS += -DUSE_KK_CODE
 endif
 
 
@@ -46,6 +41,7 @@ LOCAL_SRC_FILES := \
     src/mm_jpegdec.c
 
 LOCAL_MODULE           := libmmjpeg_interface
+LOCAL_32_BIT_ONLY := true
 LOCAL_PRELINK_MODULE   := false
 LOCAL_SHARED_LIBRARIES := libdl libcutils liblog libqomx_core
 LOCAL_MODULE_TAGS := optional

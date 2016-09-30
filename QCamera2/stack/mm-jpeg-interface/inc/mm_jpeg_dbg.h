@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -32,6 +32,7 @@
 
 #include "cam_types.h"
 
+#define LOG_DEBUG
 /* Choose debug log level. This will not affect the error logs
    0: turns off CDBG and CDBG_HIGH logs
    1: turns-on CDBG_HIGH logs

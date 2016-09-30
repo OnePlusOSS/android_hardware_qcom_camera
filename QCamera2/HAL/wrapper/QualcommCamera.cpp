@@ -1,4 +1,4 @@
-/* Copyright (c) 2011-2014, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2011-2013, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -131,9 +131,9 @@ extern "C" int  camera_device_open(
     camera_device *device = NULL;
 
     if(module && id && hw_device) {
-        if (!strcmp(module->name, camera_common.name)) {
-            int cameraId = atoi(id);
+        int cameraId = atoi(id);
 
+        if (!strcmp(module->name, camera_common.name)) {
             camera_hardware_t *camHal =
                 (camera_hardware_t *) malloc(sizeof (camera_hardware_t));
             if(!camHal) {
@@ -143,7 +143,7 @@ extern "C" int  camera_device_open(
             }
             /* we have the camera_hardware obj malloced */
             memset(camHal, 0, sizeof (camera_hardware_t));
-            camHal->hardware = new QCamera2HardwareInterface((uint32_t)cameraId);
+            camHal->hardware = new QCamera2HardwareInterface(cameraId);
             if (camHal->hardware) {
                 camHal->cameraId = cameraId;
                 device = &camHal->hw_dev;

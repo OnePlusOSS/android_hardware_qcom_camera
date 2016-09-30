@@ -25,7 +25,6 @@
 #include <stdlib.h>
 #include <utils/Errors.h>
 #include "cam_intf.h"
-#include "cam_types.h"
 #include "QCameraMem.h"
 #include "QCameraThermalAdapter.h"
 
@@ -68,18 +67,16 @@ public:
     virtual ~QCameraReprocScaleParam();
 
     virtual void setScaleEnable(bool enabled);
-    virtual int32_t setScaleSizeTbl(size_t scale_cnt,
-            cam_dimension_t *scale_tbl, size_t org_cnt,
-            cam_dimension_t *org_tbl);
+    virtual int32_t setScaleSizeTbl(uint8_t scale_cnt, cam_dimension_t *scale_tbl, uint8_t org_cnt, cam_dimension_t *org_tbl);
     virtual int32_t setValidatePicSize(int &width, int &height);
 
     virtual bool isScaleEnabled();
     virtual bool isUnderScaling();
 
 
-    virtual size_t getScaleSizeTblCnt();
+    virtual uint8_t getScaleSizeTblCnt();
     virtual cam_dimension_t *getScaledSizeTbl();
-    virtual size_t getTotalSizeTblCnt();
+    virtual uint8_t getTotalSizeTblCnt();
     virtual cam_dimension_t *getTotalSizeTbl();
     virtual int32_t getPicSizeFromAPK(int &width, int &height);
     virtual int32_t getPicSizeSetted(int &width, int &height);
@@ -88,8 +85,7 @@ private:
     bool isScalePicSize(int width, int height);
     bool isValidatePicSize(int width, int height);
     int32_t setSensorSupportedPicSize();
-    size_t checkScaleSizeTable(size_t scale_cnt, cam_dimension_t *scale_tbl,
-            size_t org_cnt, cam_dimension_t *org_tbl);
+    uint8_t checkScaleSizeTable(uint8_t scale_cnt, cam_dimension_t *scale_tbl, uint8_t org_cnt, cam_dimension_t *org_tbl);
 
     QCameraParameters *mParent;
     bool mScaleEnabled;
@@ -97,15 +93,15 @@ private:
     bool mScaleDirection;   // 0: Upscaling; 1: Downscaling
 
     // picture size cnt that need scale operation
-    size_t mNeedScaleCnt;
+    uint8_t mNeedScaleCnt;
     cam_dimension_t mNeedScaledSizeTbl[MAX_SCALE_SIZES_CNT];
 
     // sensor supported size cnt and table
-    size_t mSensorSizeTblCnt;
+    uint8_t mSensorSizeTblCnt;
     cam_dimension_t *mSensorSizeTbl;
 
     // Total size cnt (sensor supported + need scale cnt)
-    size_t mTotalSizeTblCnt;
+    uint8_t mTotalSizeTblCnt;
     cam_dimension_t mTotalSizeTbl[MAX_SIZES_CNT];
 
     cam_dimension_t mPicSizeFromAPK;   // dimension that APK is expected
@@ -201,8 +197,6 @@ public:
     static const char KEY_QC_MIN_WB_CCT[];
     static const char KEY_QC_MAX_WB_CCT[];
     static const char KEY_QC_LONG_SHOT[];
-    static const char WHITE_BALANCE_MANUAL_CCT[];
-    static const char FOCUS_MODE_MANUAL_POSITION[];
 
     static const char KEY_QC_MANUAL_FOCUS_POSITION[];
     static const char KEY_QC_MANUAL_FOCUS_POS_TYPE[];
@@ -276,17 +270,13 @@ public:
     static const char KEY_QC_OPTI_ZOOM[];
     static const char KEY_QC_SUPPORTED_OPTI_ZOOM_MODES[];
 
-    //True Portrait
-    static const char KEY_QC_TRUE_PORTRAIT[];
-    static const char KEY_QC_SUPPORTED_TRUE_PORTRAIT_MODES[];
-
-    //FSSR
-    static const char KEY_QC_FSSR[];
-    static const char KEY_QC_SUPPORTED_FSSR_MODES[];
-
     //See more
     static const char KEY_QC_SEE_MORE[];
     static const char KEY_QC_SUPPORTED_SEE_MORE_MODES[];
+
+    //still more
+    static const char KEY_QC_STILL_MORE[];
+    static const char KEY_QC_SUPPORTED_STILL_MORE_MODES[];
 
     //Longshot
     static const char KEY_QC_LONGSHOT_SUPPORTED[];
@@ -297,9 +287,6 @@ public:
     // Auto HDR supported
     static const char KEY_QC_AUTO_HDR_SUPPORTED[];
 
-    //Multi-touch Focus
-    static const char KEY_QC_MULTI_TOUCH_FOCUS[];
-    static const char KEY_QC_SUPPORTED_MULTI_TOUCH_FOCUS_MODES[];
 
     // Values for Touch AF/AEC
     static const char TOUCH_AF_AEC_OFF[];
@@ -311,6 +298,7 @@ public:
     static const char SCENE_MODE_FLOWERS[];
     static const char SCENE_MODE_AR[];
     static const char SCENE_MODE_HDR[];
+
     static const char PIXEL_FORMAT_YUV420SP_ADRENO[]; // ADRENO
     static const char PIXEL_FORMAT_YV12[]; // NV12
     static const char PIXEL_FORMAT_NV12[]; //NV12
@@ -432,8 +420,6 @@ public:
     static const char KEY_QC_VIDEO_HDR[];
     static const char KEY_QC_VT_ENABLE[];
     static const char KEY_QC_SUPPORTED_VIDEO_HDR_MODES[];
-    static const char KEY_QC_SENSOR_HDR[];
-    static const char KEY_QC_SUPPORTED_SENSOR_HDR_MODES[];
 
     // Values for SKIN TONE ENHANCEMENT
     static const char SKIN_TONE_ENHANCEMENT_ENABLE[] ;
@@ -465,21 +451,9 @@ public:
     static const char OPTI_ZOOM_OFF[];
     static const char OPTI_ZOOM_ON[];
 
-    // Values for FSSR settings.
-    static const char FSSR_OFF[];
-    static const char FSSR_ON[];
-
     // Values for See More settings.
     static const char SEE_MORE_OFF[];
     static const char SEE_MORE_ON[];
-
-    // Values for True Portrait settings.
-    static const char TRUE_PORTRAIT_OFF[];
-    static const char TRUE_PORTRAIT_ON[];
-
-    // Values for Multi-touch Focus settings
-    static const char MULTI_TOUCH_FOCUS_OFF[];
-    static const char MULTI_TOUCH_FOCUS_ON[];
 
     // Values for HFR settings.
     static const char VIDEO_HFR_OFF[];
@@ -518,14 +492,14 @@ public:
         CAMERA_ORIENTATION_PORTRAIT = 1,
         CAMERA_ORIENTATION_LANDSCAPE = 2,
     };
-
-    template <typename valueType> struct QCameraMap {
+    typedef struct {
         const char *const desc;
-        valueType val;
-    };
+        int val;
+    } QCameraMap;
 
     friend class QCameraReprocScaleParam;
     QCameraReprocScaleParam m_reprocScaleParam;
+    static const QCameraMap EFFECT_MODES_MAP[];
 
     void getSupportedHfrSizes(Vector<Size> &sizes);
     void setPreviewFrameRateMode(const char *mode);
@@ -554,10 +528,10 @@ public:
                                 cam_dimension_t &dim);
     void getThumbnailSize(int *width, int *height) const;
 
-    uint8_t getZSLBurstInterval();
-    uint8_t getZSLQueueDepth();
-    uint8_t getZSLBackLookCount();
-    uint8_t getMaxUnmatchedFramesInQueue();
+    int getZSLBurstInterval();
+    int getZSLQueueDepth();
+    int getZSLBackLookCount();
+    int getMaxUnmatchedFramesInQueue();
     int getMinPPBufs();
     bool isZSLMode() {return m_bZslMode;};
     bool isNoDisplayMode() {return m_bNoDisplayMode;};
@@ -567,17 +541,16 @@ public:
     uint8_t getNumOfSnapshots();
     uint8_t getNumOfExtraHDRInBufsIfNeeded();
     uint8_t getNumOfExtraHDROutBufsIfNeeded();
-    uint8_t getBurstNum();
+    int getBurstNum();
     bool getRecordingHintValue() {return m_bRecordingHint;}; // return local copy of video hint
     int setRecordingHintValue(int32_t value); // set local copy of video hint and send to server
                                               // no change in parameters value
-    uint32_t getJpegQuality();
-    uint32_t getJpegRotation();
-    int32_t getEffectValue();
+    int getJpegQuality();
+    int getJpegRotation();
     int32_t getFlashValue();
     int32_t getSupportedFlashModes();
     int32_t getRedEyeValue();
-    int32_t getExifDateTime(String8 &dateTime, String8 &subsecTime);
+    int32_t getExifDateTime(char *dateTime, uint32_t &count);
     int32_t getExifFocalLength(rat_t *focalLenght);
     uint16_t getExifIsoSpeed();
     int32_t getExifGpsProcessingMethod(char *gpsProcessingMethod, uint32_t &count);
@@ -604,8 +577,7 @@ public:
     int32_t updateFlash(bool commitSettings);
     int32_t updateRAW(cam_dimension_t max_dim);
     bool isAVTimerEnabled();
-    uint8_t getMobicatMask();
-    bool isDISEnabled();
+    bool isMobicatEnabled();
 
     cam_focus_mode_type getFocusMode() const {return mFocusMode;};
     int32_t setNumOfSnapshot();
@@ -642,24 +614,12 @@ public:
     uint8_t getNumOfExtraBuffersForPreview();
     bool needThumbnailReprocess(uint32_t *pFeatureMask);
     inline bool isUbiFocusEnabled() {return m_bAFBracketingOn;};
-    inline bool isMultiTouchFocusSelected() {return m_bMultiTouchFocusOn;};
-    bool isMultiTouchFocusEnabled();
-    void resetMultiTouchFocusParam();
-    inline bool isTouchFocusing() {return m_bTouchFocusOn;};
     inline bool isChromaFlashEnabled() {return m_bChromaFlashOn;};
     inline bool isSeeMoreEnabled() {return m_bSeeMoreOn;};
-    inline bool isTruePortraitEnabled() {return m_bTruePortraitOn;};
-    inline uint32_t TpMaxMetaSize() {
-        return m_pCapability->true_portrait_settings_need.meta_max_size;};
-    inline uint32_t TpHeaderSize() {
-        return m_pCapability->true_portrait_settings_need.meta_header_size;};
-    inline uint32_t TPBodyMaskWidth() {
-        return m_pCapability->true_portrait_settings_need.body_mask_width;};
+    inline bool isStillMoreEnabled() {return m_bStillMoreOn;};
     bool isOptiZoomEnabled();
-    bool isfssrEnabled() {return m_bFssrOn;};
     bool isDifferentFlipZSL();
     int32_t commitAFBracket(cam_af_bracketing_t afBracket);
-    int32_t commitMTFBracket(cam_af_bracketing_t mtfBracket);
     int32_t commitFlashBracket(cam_flash_bracketing_t flashBracket);
     int32_t set3ALock(const char *lockStr);
     int32_t setAndCommitZoom(int zoom_level);
@@ -667,23 +627,16 @@ public:
     int32_t setLongshotEnable(bool enable);
     inline bool isUbiRefocus() {return isUbiFocusEnabled() &&
         (m_pCapability->ubifocus_af_bracketing_need.output_count > 1);};
-    inline uint8_t UfOutputCount() {
+    inline uint32_t UfOutputCount() {
         return m_pCapability->ubifocus_af_bracketing_need.output_count;};
-    inline bool isMTFRefocus() {return (isMultiTouchFocusEnabled() &&
-            (m_pCapability->mtf_af_bracketing_parm.output_count > 1));};
-    uint32_t MTFOutputCount();
     inline bool generateThumbFromMain() {return isUbiFocusEnabled() ||
-            isChromaFlashEnabled() || isOptiZoomEnabled() || isDifferentFlipZSL() ||
-            isfssrEnabled() || isMultiTouchFocusEnabled();}
-    cam_af_bracketing_t m_MTFBracketInfo;
-    int32_t updateMTFInfo(const int32_t lenPos);
-    uint8_t m_currNumBufMTF;
+        isChromaFlashEnabled() || isOptiZoomEnabled() ||
+        isDifferentFlipZSL() || isStillMoreEnabled(); }
     int32_t  updateCurrentFocusPosition(int32_t pos);
     bool isDisplayFrameNeeded() { return m_bDisplayFrame; };
     int32_t setDisplayFrame(bool enabled) {m_bDisplayFrame=enabled; return 0;};
     bool isAdvCamFeaturesEnabled() {return isUbiFocusEnabled() ||
-            isChromaFlashEnabled() || isOptiZoomEnabled() || isHDREnabled() ||
-            isfssrEnabled() || isMultiTouchFocusEnabled();}
+        isChromaFlashEnabled() || isOptiZoomEnabled() || isHDREnabled();}
     int32_t setIntEvent(cam_int_evt_params_t params);
 
 private:
@@ -728,16 +681,15 @@ private:
     int32_t setFocusAreas(const QCameraParameters& );
     int32_t setMeteringAreas(const QCameraParameters& );
     int32_t setSceneMode(const QCameraParameters& );
+    int32_t setScenePreferences(const QCameraParameters& );
+    int32_t setSceneFocusMode(const QCameraParameters& );
     int32_t setSelectableZoneAf(const QCameraParameters& );
     int32_t setAEBracket(const QCameraParameters& );
     int32_t setAFBracket(const QCameraParameters& );
-    int32_t setMultiTouchFocus(const QCameraParameters& );
-    int32_t setTouchAFAEC(const QCameraParameters& params);
     int32_t setChromaFlash(const QCameraParameters& );
     int32_t setOptiZoom(const QCameraParameters& );
-    int32_t setTruePortrait(const QCameraParameters& );
-    int32_t setFssr(const QCameraParameters& );
     int32_t setSeeMore(const QCameraParameters& );
+    int32_t setStillMore(const QCameraParameters& );
     int32_t setRedeyeReduction(const QCameraParameters& );
     int32_t setGpsLocation(const QCameraParameters& );
     int32_t setRecordingHint(const QCameraParameters& );
@@ -752,15 +704,13 @@ private:
     int32_t setBurstNum(const QCameraParameters& params);
     int32_t setSnapshotFDReq(const QCameraParameters& );
     int32_t setStatsDebugMask();
-    int32_t setISPDebugMask();
     int32_t setAlgoOptimizationsMask();
-    int32_t setSensorDebugMask();
+    int32_t setISPDebugMask();
     int32_t setTintlessValue(const QCameraParameters& params);
     int32_t setCDSMode(const QCameraParameters& params);
     int32_t setMobicat(const QCameraParameters& params);
     bool UpdateHFRFrameRate(const QCameraParameters& params);
     int32_t setLongshotParam(const QCameraParameters& params);
-
     int32_t setAutoExposure(const char *autoExp);
     int32_t setPreviewFpsRange(int min_fps,int max_fps,
             int vid_min_fps,int vid_max_fps);
@@ -774,7 +724,6 @@ private:
     int32_t setSkinToneEnhancement(int sceFactor);
     int32_t setSceneDetect(const char *scendDetect);
     int32_t setVideoHDR(const char *videoHDR);
-    int32_t setSensorSnapshotHDR(const char *snapshotHDR);
     int32_t setVtEnable(const char *vtEnable);
     int32_t setZoom(int zoom_level);
     int32_t setISOValue(const char *isoValue);
@@ -796,16 +745,13 @@ private:
     int32_t setSelectableZoneAf(const char *selZoneAFStr);
     int32_t setAEBracket(const char *aecBracketStr);
     int32_t setAFBracket(const char *afBracketStr);
-    int32_t setMultiTouchFocus(const char *multiTouchFocusStr);
-    int32_t setTouchAFAEC(const char *touchAfAecStr);
     int32_t setChromaFlash(const char *chromaFlashStr);
     int32_t setOptiZoom(const char *optiZoomStr);
-    int32_t setTruePortrait(const char *truePortraitStr);
-    int32_t setFssr(const char *fssrStr);
-    int32_t setSeeMore(const char *optiZoomStr);
+    int32_t setSeeMore(const char *seeMoreStr);
+    int32_t setStillMore(const char *stillMoreStr);
     int32_t setRedeyeReduction(const char *redeyeStr);
     int32_t setWaveletDenoise(const char *wnrStr);
-    int32_t setFaceRecognition(const char *faceRecog, uint32_t maxFaces);
+    int32_t setFaceRecognition(const char *faceRecog, int maxFaces);
     int32_t setTintlessValue(const char *tintStr);
 
 
@@ -818,20 +764,28 @@ private:
     bool validateCameraAreas(cam_area_t *areas, int num_areas);
     int parseGPSCoordinate(const char *coord_str, rat_t *coord);
     int32_t getRational(rat_t *rat, int num, int denom);
-    String8 createSizesString(const cam_dimension_t *sizes, size_t len);
-    String8 createHfrValuesString(const cam_hfr_info_t *values, size_t len,
-            const QCameraMap<cam_hfr_mode_t> *map, size_t map_len);
-    String8 createHfrSizesString(const cam_hfr_info_t *values, size_t len);
+    String8 createSizesString(const cam_dimension_t *sizes, int len);
+    String8 createValuesString(const int *values, int len,
+                               const QCameraMap *map, int map_len);
+    String8 createValuesStringFromMap(const QCameraMap *map,
+                                      int map_len);
+    String8 createHfrValuesString(const cam_hfr_info_t *values, int len,
+                                  const QCameraMap *map, int map_len);
+    String8 createHfrSizesString(const cam_hfr_info_t *values, int len);
     String8 createFpsRangeString(const cam_fps_range_t *fps,
-            size_t len, int &default_fps_index);
+                                 int len,
+                                 int &default_fps_index);
     String8 createFpsString(cam_fps_range_t &fps);
-    String8 createZoomRatioValuesString(uint32_t *zoomRatios, size_t length);
+    String8 createZoomRatioValuesString(int *zoomRatios, int length);
+    int lookupAttr(const QCameraMap arr[], int len, const char *name);
+    const char *lookupNameByValue(const QCameraMap arr[], int len, int value);
 
     // ops for batch set/get params with server
     int32_t initBatchUpdate(void *p_table);
     int32_t AddSetParmEntryToBatch(void *p_table,
-            cam_intf_parm_type_t paramType,
-            size_t paramLength, void *paramValue);
+                                   cam_intf_parm_type_t paramType,
+                                   uint32_t paramLength,
+                                   void *paramValue);
     int32_t commitSetBatch();
     int32_t AddGetParmEntryToBatch(void *p_table,
                                    cam_intf_parm_type_t paramType);
@@ -843,32 +797,30 @@ private:
 
     // Map from strings to values
     static const cam_dimension_t THUMBNAIL_SIZES_MAP[];
-    static const QCameraMap<cam_auto_exposure_mode_type> AUTO_EXPOSURE_MAP[];
-    static const QCameraMap<cam_format_t> PREVIEW_FORMATS_MAP[];
-    static const QCameraMap<cam_format_t> PICTURE_TYPES_MAP[];
-    static const QCameraMap<cam_focus_mode_type> FOCUS_MODES_MAP[];
-    static const QCameraMap<cam_effect_mode_type> EFFECT_MODES_MAP[];
-    static const QCameraMap<cam_scene_mode_type> SCENE_MODES_MAP[];
-    static const QCameraMap<cam_flash_mode_t> FLASH_MODES_MAP[];
-    static const QCameraMap<cam_focus_algorithm_type> FOCUS_ALGO_MAP[];
-    static const QCameraMap<cam_wb_mode_type> WHITE_BALANCE_MODES_MAP[];
-    static const QCameraMap<cam_antibanding_mode_type> ANTIBANDING_MODES_MAP[];
-    static const QCameraMap<cam_iso_mode_type> ISO_MODES_MAP[];
-    static const QCameraMap<cam_hfr_mode_t> HFR_MODES_MAP[];
-    static const QCameraMap<cam_bracket_mode> BRACKETING_MODES_MAP[];
-    static const QCameraMap<int> ON_OFF_MODES_MAP[];
-    static const QCameraMap<int> ENABLE_DISABLE_MODES_MAP[];
-    static const QCameraMap<int> DENOISE_ON_OFF_MODES_MAP[];
-    static const QCameraMap<int> TRUE_FALSE_MODES_MAP[];
-    static const QCameraMap<int> TOUCH_AF_AEC_MODES_MAP[];
-    static const QCameraMap<cam_flip_t> FLIP_MODES_MAP[];
-    static const QCameraMap<int> AF_BRACKETING_MODES_MAP[];
-    static const QCameraMap<int> CHROMA_FLASH_MODES_MAP[];
-    static const QCameraMap<int> OPTI_ZOOM_MODES_MAP[];
-    static const QCameraMap<int> TRUE_PORTRAIT_MODES_MAP[];
-    static const QCameraMap<int> FSSR_MODES_MAP[];
-    static const QCameraMap<int> MULTI_TOUCH_FOCUS_MODES_MAP[];
-    static const QCameraMap<cam_cds_mode_type_t> CDS_MODES_MAP[];
+    static const QCameraMap AUTO_EXPOSURE_MAP[];
+    static const QCameraMap PREVIEW_FORMATS_MAP[];
+    static const QCameraMap PICTURE_TYPES_MAP[];
+    static const QCameraMap RAW_FORMATS_MAP[];
+    static const QCameraMap FOCUS_MODES_MAP[];
+    static const QCameraMap SCENE_MODES_MAP[];
+    static const QCameraMap FLASH_MODES_MAP[];
+    static const QCameraMap FOCUS_ALGO_MAP[];
+    static const QCameraMap WHITE_BALANCE_MODES_MAP[];
+    static const QCameraMap ANTIBANDING_MODES_MAP[];
+    static const QCameraMap ISO_MODES_MAP[];
+    static const QCameraMap HFR_MODES_MAP[];
+    static const QCameraMap BRACKETING_MODES_MAP[];
+    static const QCameraMap ON_OFF_MODES_MAP[];
+    static const QCameraMap ENABLE_DISABLE_MODES_MAP[];
+    static const QCameraMap DENOISE_ON_OFF_MODES_MAP[];
+    static const QCameraMap TRUE_FALSE_MODES_MAP[];
+    static const QCameraMap TOUCH_AF_AEC_MODES_MAP[];
+    static const QCameraMap FLIP_MODES_MAP[];
+    static const QCameraMap AF_BRACKETING_MODES_MAP[];
+    static const QCameraMap CHROMA_FLASH_MODES_MAP[];
+    static const QCameraMap OPTI_ZOOM_MODES_MAP[];
+    static const QCameraMap CDS_MODES_MAP[];
+    static const QCameraMap SEE_MORE_MODES_MAP[];
 
     cam_capability_t *m_pCapability;
     mm_camera_vtbl_t *m_pCamOpsTbl;
@@ -880,8 +832,8 @@ private:
     bool m_bRecordingHint;          // local copy of recording hint
     bool m_bRecordingHint_new;
     bool m_bHistogramEnabled;       // if histogram is enabled
-    bool m_bLongshotEnabled;        // if longshot is enabled
-    uint32_t m_nFaceProcMask;       // face process mask
+    bool m_bLongshotEnabled;       // if longshot is enabled
+    int  m_nFaceProcMask;           // face process mask
     bool m_bDebugFps;               // if FPS need to be logged
     cam_focus_mode_type mFocusMode;
     cam_format_t mPreviewFormat;
@@ -890,7 +842,7 @@ private:
     bool m_bNoDisplayMode;
     bool m_bWNROn;
     bool m_bInited;
-    uint8_t m_nBurstNum;
+    int m_nBurstNum;
     cam_exp_bracketing_t m_AEBracketingClient;
     bool m_bUpdateEffects;          // Cause reapplying of effects
     bool m_bSceneTransitionAuto;    // Indicate that scene has changed to Auto
@@ -903,8 +855,7 @@ private:
     cam_dimension_t m_rawSize; // live snapshot size
     bool m_bHDREnabled;             // if HDR is enabled
     bool m_bAVTimerEnabled;    //if AVTimer is enabled
-    uint8_t m_bMobiMask;
-    bool m_bDISEnabled;
+    bool m_bMobiEnabled;
     QCameraAdjustFPS *m_AdjustFPS;
     bool m_bHDR1xFrameEnabled;          // if frame with exposure compensation 0 during HDR is enabled
     bool m_HDRSceneEnabled; // Auto HDR indication
@@ -920,12 +871,10 @@ private:
     cam_fps_range_t m_default_fps_range;
 
     bool m_bAFBracketingOn;
-    bool m_bMultiTouchFocusOn;
-    bool m_bTouchFocusOn;
     bool m_bChromaFlashOn;
     bool m_bOptiZoomOn;
-    bool m_bFssrOn;
     bool m_bSeeMoreOn;
+    bool m_bStillMoreOn;
     bool m_bUbiRefocus;
     cam_fps_range_t m_hfrFpsRange;
     bool m_bHfrMode;
@@ -934,8 +883,6 @@ private:
     bool m_bAeBracketingEnabled;
     int32_t mFlashValue;
     int32_t mFlashDaemonValue;
-    bool m_bSensorHDREnabled;             // if HDR is enabled
-    bool m_bTruePortraitOn;
 
 };
 

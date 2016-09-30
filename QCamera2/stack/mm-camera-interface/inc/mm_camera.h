@@ -47,7 +47,6 @@
 #define MM_CAMERA_DEV_NAME_LEN 32
 #define MM_CAMERA_DEV_OPEN_TRIES 2
 #define MM_CAMERA_DEV_OPEN_RETRY_SLEEP 20
-#define THREAD_NAME_SIZE 15
 
 #define MM_CAMERA_POST_FLASH_PREVIEW_SKIP_CNT 3
 
@@ -94,7 +93,6 @@ typedef enum {
     MM_CAMERA_GENERIC_CMD_TYPE_AE_BRACKETING,
     MM_CAMERA_GENERIC_CMD_TYPE_AF_BRACKETING,
     MM_CAMERA_GENERIC_CMD_TYPE_FLASH_BRACKETING,
-    MM_CAMERA_GENERIC_CMD_TYPE_MTF_BRACKETING,
     MM_CAMERA_GENERIC_CMD_TYPE_ZOOM_1X,
 } mm_camera_generic_cmd_type_t;
 
@@ -119,13 +117,11 @@ typedef struct {
 typedef void (*mm_camera_cmd_cb_t)(mm_camera_cmdcb_t * cmd_cb, void* user_data);
 
 typedef struct {
-    uint8_t is_active;     /*indicates whether thread is active or not */
     cam_queue_t cmd_queue; /* cmd queue (queuing dataCB, asyncCB, or exitCMD) */
     pthread_t cmd_pid;           /* cmd thread ID */
     cam_semaphore_t cmd_sem;     /* semaphore for cmd thread */
     mm_camera_cmd_cb_t cb;       /* cb for cmd */
     void* user_data;             /* user_data for cb */
-    char threadName[THREAD_NAME_SIZE];
 } mm_camera_cmd_thread_t;
 
 typedef enum {
@@ -161,7 +157,6 @@ typedef struct {
     pthread_mutex_t mutex;
     pthread_cond_t cond_v;
     int32_t status;
-    char threadName[THREAD_NAME_SIZE];
     //void *my_obj;
 } mm_camera_poll_thread_t;
 
@@ -232,7 +227,6 @@ typedef struct mm_stream {
     /* offset */
     cam_frame_len_offset_t frame_offset;
 
-    pthread_mutex_t cmd_lock; /* lock to protect cmd_thread */
     mm_camera_cmd_thread_t cmd_thread;
 
     /* dataCB registered on this stream obj */
@@ -294,7 +288,6 @@ typedef enum {
     MM_CHANNEL_EVT_AF_BRACKETING,
     MM_CHANNEL_EVT_AE_BRACKETING,
     MM_CHANNEL_EVT_FLASH_BRACKETING,
-    MM_CHANNEL_EVT_MTF_BRACKETING,
     MM_CHANNEL_EVT_ZOOM_1X,
     MM_CHANNEL_EVT_GET_STREAM_QUEUED_BUF_COUNT,
 } mm_channel_evt_type_t;
@@ -320,7 +313,7 @@ typedef struct {
     uint32_t buf_idx;
     int32_t plane_idx;
     int fd;
-    size_t size;
+    uint32_t size;
 } mm_evt_paylod_map_stream_buf_t;
 
 typedef struct {
@@ -395,7 +388,7 @@ typedef struct mm_channel {
     uint8_t need3ABracketing;
     uint8_t isFlashBracketingEnabled;
     uint8_t isZoom1xFrameRequested;
-    char threadName[THREAD_NAME_SIZE];
+
 } mm_channel_t;
 
 typedef struct {
@@ -473,7 +466,7 @@ extern int32_t mm_camera_util_g_ctrl(int32_t fd,
 /* send msg throught domain socket for fd mapping */
 extern int32_t mm_camera_util_sendmsg(mm_camera_obj_t *my_obj,
                                       void *msg,
-                                      size_t buf_size,
+                                      uint32_t buf_size,
                                       int sendfd);
 /* Check if hardware target is A family */
 uint8_t mm_camera_util_chip_is_a_family(void);
@@ -497,7 +490,7 @@ extern int32_t mm_camera_get_parms(mm_camera_obj_t *my_obj,
 extern int32_t mm_camera_map_buf(mm_camera_obj_t *my_obj,
                                  uint8_t buf_type,
                                  int fd,
-                                 size_t size);
+                                 uint32_t size);
 extern int32_t mm_camera_unmap_buf(mm_camera_obj_t *my_obj,
                                    uint8_t buf_type);
 extern int32_t mm_camera_do_auto_focus(mm_camera_obj_t *my_obj);
@@ -565,7 +558,7 @@ extern int32_t mm_camera_map_stream_buf(mm_camera_obj_t *my_obj,
                                         uint32_t buf_idx,
                                         int32_t plane_idx,
                                         int fd,
-                                        size_t size);
+                                        uint32_t size);
 extern int32_t mm_camera_unmap_stream_buf(mm_camera_obj_t *my_obj,
                                           uint32_t ch_id,
                                           uint32_t stream_id,
@@ -608,7 +601,7 @@ extern int32_t mm_stream_map_buf(mm_stream_t *my_obj,
                                  uint32_t frame_idx,
                                  int32_t plane_idx,
                                  int fd,
-                                 size_t size);
+                                 uint32_t size);
 extern int32_t mm_stream_unmap_buf(mm_stream_t *my_obj,
                                    uint8_t buf_type,
                                    uint32_t frame_idx,
@@ -637,17 +630,14 @@ extern int32_t mm_camera_poll_thread_del_poll_fd(
                                 mm_camera_poll_thread_t * poll_cb,
                                 uint32_t handler,
                                 mm_camera_call_type_t);
-extern int32_t mm_camera_poll_thread_commit_updates(
-        mm_camera_poll_thread_t * poll_cb);
 extern int32_t mm_camera_cmd_thread_launch(
                                 mm_camera_cmd_thread_t * cmd_thread,
                                 mm_camera_cmd_cb_t cb,
                                 void* user_data);
-extern int32_t mm_camera_cmd_thread_name(const char* name);
 extern int32_t mm_camera_cmd_thread_release(mm_camera_cmd_thread_t * cmd_thread);
 
 extern int32_t mm_camera_channel_advanced_capture(mm_camera_obj_t *my_obj,
                                                mm_camera_advanced_capture_t advanced_capturetype,
                                                uint32_t ch_id,
-                                               uint32_t start_flag);
+                                               int32_t start_flag);
 #endif /* __MM_CAMERA_H__ */

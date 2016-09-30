@@ -87,7 +87,7 @@ typedef struct {
     qcamera_release_data_t   release_data; // any data needs to be release after notify
 } qcamera_data_argm_t;
 
-#define MAX_EXIF_TABLE_ENTRIES 17
+#define MAX_EXIF_TABLE_ENTRIES 14
 class QCameraExif
 {
 public:
@@ -182,9 +182,8 @@ private:
 
     void *                     m_pJpegOutputMem[MM_JPEG_MAX_BUF];
     QCameraExif *              m_pJpegExifObj;
-    uint32_t                   m_bThumbnailNeeded;
+    int8_t                     m_bThumbnailNeeded;
     QCameraReprocessChannel *  m_pReprocChannel;
-    QCameraReprocessChannel *  m_pDualReprocChannel;
 
     int8_t                     m_bInited; // if postproc is inited
 

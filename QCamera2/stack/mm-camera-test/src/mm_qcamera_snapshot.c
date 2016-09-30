@@ -37,7 +37,7 @@ static void jpeg_encode_cb(jpeg_job_status_t status,
                            mm_jpeg_output_t *p_buf,
                            void *userData)
 {
-    uint32_t i = 0;
+    int i = 0;
     mm_camera_test_obj_t *pme = NULL;
     CDBG("%s: BEGIN\n", __func__);
 
@@ -169,6 +169,7 @@ int createEncodingSession(mm_camera_test_obj_t *test_obj,
                                              &test_obj->current_jpeg_sess_id);
 }
 
+#if 0 // Removing metadata stream for snapshot in qcamera app.
 /** mm_app_snapshot_metadata_notify_cb
  *  @bufs: Pointer to super buffer
  *  @user_data: Pointer to user data
@@ -178,7 +179,7 @@ int createEncodingSession(mm_camera_test_obj_t *test_obj,
 static void mm_app_snapshot_metadata_notify_cb(mm_camera_super_buf_t *bufs,
   void *user_data)
 {
-  uint32_t i = 0;
+  int i = 0;
   mm_camera_channel_t *channel = NULL;
   mm_camera_stream_t *p_stream = NULL;
   mm_camera_test_obj_t *pme = (mm_camera_test_obj_t *)user_data;
@@ -247,9 +248,6 @@ static void mm_app_snapshot_metadata_notify_cb(mm_camera_super_buf_t *bufs,
     if (focus_data->focus_state == CAM_AF_FOCUSED) {
       CDBG_ERROR("%s: AutoFocus Done Call Back Received\n",__func__);
       mm_camera_app_done();
-    } else if (focus_data->focus_state == CAM_AF_NOT_FOCUSED) {
-      CDBG_ERROR("%s: AutoFocus failed\n",__func__);
-      mm_camera_app_done();
     }
   }
 
@@ -261,13 +259,13 @@ static void mm_app_snapshot_metadata_notify_cb(mm_camera_super_buf_t *bufs,
   mm_app_cache_ops((mm_camera_app_meminfo_t *)frame->mem_info,
                    ION_IOC_INV_CACHES);
 }
-
+#endif
 static void mm_app_snapshot_notify_cb_raw(mm_camera_super_buf_t *bufs,
                                           void *user_data)
 {
 
     int rc;
-    uint32_t i = 0;
+    int i = 0;
     mm_camera_test_obj_t *pme = (mm_camera_test_obj_t *)user_data;
     mm_camera_channel_t *channel = NULL;
     mm_camera_stream_t *m_stream = NULL;
@@ -335,7 +333,7 @@ static void mm_app_snapshot_notify_cb(mm_camera_super_buf_t *bufs,
 {
 
     int rc = 0;
-    uint32_t i = 0;
+    int i = 0;
     mm_camera_test_obj_t *pme = (mm_camera_test_obj_t *)user_data;
     mm_camera_channel_t *channel = NULL;
     mm_camera_stream_t *p_stream = NULL;
@@ -616,6 +614,7 @@ int mm_app_start_capture(mm_camera_test_obj_t *test_obj,
         CDBG_ERROR("%s: add channel failed", __func__);
         return -MM_CAMERA_E_GENERAL;
     }
+#if 0 // Removing metadata stream for snapshot in qcamera app.
     s_metadata = mm_app_add_metadata_stream(test_obj,
                                             channel,
                                             mm_app_snapshot_metadata_notify_cb,
@@ -626,7 +625,7 @@ int mm_app_start_capture(mm_camera_test_obj_t *test_obj,
         mm_app_del_channel(test_obj, channel);
         return -MM_CAMERA_E_GENERAL;
     }
-
+#endif
     s_main = mm_app_add_snapshot_stream(test_obj,
                                         channel,
                                         NULL,
@@ -670,7 +669,7 @@ int mm_app_take_picture(mm_camera_test_obj_t *test_obj, uint8_t is_burst_mode)
 {
     CDBG_HIGH("\nEnter %s!!\n",__func__);
     int rc = MM_CAMERA_OK;
-    uint8_t num_snapshot = 1;
+    int num_snapshot = 1;
     int num_rcvd_snapshot = 0;
 
     if (is_burst_mode)

@@ -23,7 +23,7 @@ endif
 
 LOCAL_CFLAGS += -D_ANDROID_
 ifneq ($(call is-platform-sdk-version-at-least,20),true)
-LOCAL_CFLAGS += -DUSE_KK_CODE
+    LOCAL_CFLAGS += -DUSE_KK_CODE
 endif
 
 LOCAL_COPY_HEADERS_TO := mm-camera-interface
@@ -32,7 +32,7 @@ LOCAL_COPY_HEADERS += ../common/cam_types.h
 
 LOCAL_C_INCLUDES := \
     $(LOCAL_PATH)/inc \
-    $(LOCAL_PATH)/../common
+    $(LOCAL_PATH)/../common 
 
 LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr/include
 LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr/include/media
@@ -47,11 +47,12 @@ ifneq ($(call is-platform-sdk-version-at-least,17),true)
   LOCAL_CFLAGS += -include bionic/libc/kernel/common/linux/socket.h
   LOCAL_CFLAGS += -include bionic/libc/kernel/common/linux/un.h
 endif
-LOCAL_CFLAGS += -Wall -Wextra -Werror
+LOCAL_CFLAGS += -Wall 
 
 LOCAL_SRC_FILES := $(MM_CAM_FILES)
 
 LOCAL_MODULE           := libmmcamera_interface
+LOCAL_32_BIT_ONLY := true
 LOCAL_PRELINK_MODULE   := false
 LOCAL_SHARED_LIBRARIES := libdl libcutils liblog
 LOCAL_MODULE_TAGS := optional

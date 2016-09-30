@@ -29,7 +29,6 @@
 
 #include <utils/Errors.h>
 #include <utils/Log.h>
-#include <sys/prctl.h>
 #include "QCameraCmdThread.h"
 
 using namespace android;
@@ -91,26 +90,6 @@ int32_t QCameraCmdThread::launch(void *(*start_routine)(void *),
                    user_data);
     return NO_ERROR;
 }
-
-/*===========================================================================
- * FUNCTION   : setName
- *
- * DESCRIPTION: name the cmd thread
- *
- * PARAMETERS :
- *   @name : desired name for the thread
- *
- * RETURN     : int32_t type of status
- *              NO_ERROR  -- success
- *              none-zero failure code
- *==========================================================================*/
-int32_t QCameraCmdThread::setName(const char* name)
-{
-    /* name the thread */
-    prctl(PR_SET_NAME, (unsigned long)name, 0, 0, 0);
-    return NO_ERROR;
-}
-
 /*===========================================================================
  * FUNCTION   : sendCmd
  *
