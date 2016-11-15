@@ -51,9 +51,9 @@
 #define CEILING4(X)  (((X) + 0x0003) & 0xFFFC)
 #define CEILING2(X)  (((X) + 0x0001) & 0xFFFE)
 
-#define MAX_ZOOMS_CNT 91
+#define MAX_ZOOMS_CNT 61	//91
 #define MAX_SIZES_CNT 40
-#define MAX_EXP_BRACKETING_LENGTH 32
+#define MAX_EXP_BRACKETING_LENGTH 256	//32
 #define MAX_ROI 10
 #define MAX_STREAM_NUM_IN_BUNDLE 8
 #define MAX_NUM_STREAMS          8
@@ -601,6 +601,16 @@ typedef enum {
     CAM_ISO_MODE_800,
     CAM_ISO_MODE_1600,
     CAM_ISO_MODE_3200,
+    CAM_ISO_MODE_125,
+    CAM_ISO_MODE_160,
+    CAM_ISO_MODE_250,
+    CAM_ISO_MODE_320,
+    CAM_ISO_MODE_500,
+    CAM_ISO_MODE_640,
+    CAM_ISO_MODE_1000,
+    CAM_ISO_MODE_1250,
+    CAM_ISO_MODE_2000,
+    CAM_ISO_MODE_2500,
     CAM_ISO_MODE_MAX
 } cam_iso_mode_type;
 
@@ -716,6 +726,8 @@ typedef enum {
     CAM_SCENE_MODE_BARCODE,
     CAM_SCENE_MODE_HDR,
     CAM_SCENE_MODE_AQUA,
+    CAM_SCENE_MODE_MANUAL,
+    CAM_SCENE_MODE_HDR_AUTO,
     CAM_SCENE_MODE_MAX
 } cam_scene_mode_type;
 
@@ -1167,6 +1179,7 @@ typedef struct {
 typedef struct {
     uint8_t smile_degree;      /* smile degree (0, -100) */
     uint8_t smile_confidence;  /* smile confidence (0, 100) */
+    uint8_t is_smile;          /* 1 means smile; 0 means not smile */
 } cam_face_smile_info_t;
 
 typedef struct {
@@ -1477,6 +1490,8 @@ typedef struct {
     int32_t est_snap_iso_value;
     uint32_t est_snap_luma;
     uint32_t est_snap_target;
+    int exp_index;
+    uint32_t is_hdr_scene;
 } cam_3a_params_t;
 
 typedef struct {
@@ -1781,6 +1796,12 @@ typedef  struct {
     uint8_t is_dyn_img_data_valid;
     cam_dyn_img_data_t dyn_img_data;
 
+    /* choose stable frame for image stability */
+    uint8_t is_af_stats_info_valid;
+    int focus_value;
+    /* Preview skip valid params */
+    uint8_t is_preview_frame_skip_valid;
+    cam_frame_idx_range_t preview_frame_skip_idx_range;
 } cam_metadata_info_t;
 
 typedef enum {
@@ -1889,6 +1910,7 @@ typedef enum {
     CAM_INTF_PARM_CAPTURE_FRAME_CONFIG, /* 90 */
     CAM_INTF_PARM_DUAL_LED_CALIBRATION,
     CAM_INTF_PARM_ADV_CAPTURE_MODE,
+    CAM_INTF_PARM_FACE_BEAUTY_LEVEL,
 
     /* stream based parameters */
     CAM_INTF_PARM_DO_REPROCESS,
@@ -2165,6 +2187,9 @@ typedef enum {
     CAM_INTF_PARM_JPEG_SCALE_DIMENSION,
     /*Param for updating Quadra CFA mode */
     CAM_INTF_PARM_QUADRA_CFA,
+    /* choose stable frame for image stability */
+    CAM_INTF_META_FV,
+    CAM_INTF_META_FRAME_SKIP,
     CAM_INTF_PARM_MAX
 } cam_intf_parm_type_t;
 
@@ -2747,4 +2772,11 @@ typedef enum {
     CAM_CUSTOM_PARM_MAX,
 } cam_custom_parm_type;
 
+    typedef struct fps_t
+    {
+        int fc;
+        int fc_old;
+        int64_t time_old;
+    }fps_t;
+    void showFps (struct fps_t* fps, cam_stream_type_t type, char* msg);
 #endif /* __QCAMERA_TYPES_H__ */

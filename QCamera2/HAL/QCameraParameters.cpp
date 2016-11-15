@@ -229,6 +229,8 @@ const char QCameraParameters::SCENE_MODE_BACKLIGHT[] = "backlight";
 const char QCameraParameters::SCENE_MODE_FLOWERS[] = "flowers";
 const char QCameraParameters::SCENE_MODE_AR[] = "AR";
 const char QCameraParameters::SCENE_MODE_HDR[] = "hdr";
+const char QCameraParameters::SCENE_MODE_MANUAL[] = "manual";
+const char QCameraParameters::SCENE_MODE_HDR_AUTO[] = "hdr-auto";
 
 // Formats for setPreviewFormat and setPictureFormat.
 const char QCameraParameters::PIXEL_FORMAT_YUV420SP_ADRENO[] = "yuv420sp-adreno";
@@ -335,6 +337,16 @@ const char QCameraParameters::ISO_800[] = "ISO800";
 const char QCameraParameters::ISO_1600[] = "ISO1600";
 const char QCameraParameters::ISO_3200[] = "ISO3200";
 const char QCameraParameters::ISO_MANUAL[] = "manual";
+const char QCameraParameters::ISO_125[] = "ISO125";
+const char QCameraParameters::ISO_160[] = "ISO160";
+const char QCameraParameters::ISO_250[] = "ISO250";
+const char QCameraParameters::ISO_320[] = "ISO320";
+const char QCameraParameters::ISO_500[] = "ISO500";
+const char QCameraParameters::ISO_640[] = "ISO640";
+const char QCameraParameters::ISO_1000[] = "ISO1000";
+const char QCameraParameters::ISO_1250[] = "ISO1250";
+const char QCameraParameters::ISO_2000[] = "ISO2000";
+const char QCameraParameters::ISO_2500[] = "ISO2500";
 
 
 // Values for auto exposure settings.
@@ -686,6 +698,8 @@ const QCameraParameters::QCameraMap<cam_scene_mode_type>
     { SCENE_MODE_FLOWERS,        CAM_SCENE_MODE_FLOWERS },
     { SCENE_MODE_AR,             CAM_SCENE_MODE_AR },
     { SCENE_MODE_HDR,            CAM_SCENE_MODE_HDR },
+    { SCENE_MODE_MANUAL,         CAM_SCENE_MODE_MANUAL },
+    { SCENE_MODE_HDR_AUTO,       CAM_SCENE_MODE_HDR_AUTO },
 };
 
 const QCameraParameters::QCameraMap<cam_flash_mode_t>
@@ -734,7 +748,17 @@ const QCameraParameters::QCameraMap<cam_iso_mode_type>
     { ISO_400,   CAM_ISO_MODE_400 },
     { ISO_800,   CAM_ISO_MODE_800 },
     { ISO_1600,  CAM_ISO_MODE_1600 },
-    { ISO_3200,  CAM_ISO_MODE_3200 }
+    { ISO_3200,  CAM_ISO_MODE_3200 },
+    { ISO_125,   CAM_ISO_MODE_125 },
+    { ISO_160,   CAM_ISO_MODE_160 },
+    { ISO_250,   CAM_ISO_MODE_250 },
+    { ISO_320,   CAM_ISO_MODE_320 },
+    { ISO_500,   CAM_ISO_MODE_500 },
+    { ISO_640,   CAM_ISO_MODE_640 },
+    { ISO_1000,  CAM_ISO_MODE_1000 },
+    { ISO_1250,  CAM_ISO_MODE_1250 },
+    { ISO_2000,  CAM_ISO_MODE_2000 },
+    { ISO_2500,  CAM_ISO_MODE_2500 }
 };
 
 const QCameraParameters::QCameraMap<cam_hfr_mode_t>

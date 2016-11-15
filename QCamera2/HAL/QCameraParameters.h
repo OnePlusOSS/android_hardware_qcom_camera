@@ -347,6 +347,8 @@ private:
     static const char SCENE_MODE_FLOWERS[];
     static const char SCENE_MODE_AR[];
     static const char SCENE_MODE_HDR[];
+    static const char SCENE_MODE_MANUAL[];
+    static const char SCENE_MODE_HDR_AUTO[];
     static const char PIXEL_FORMAT_YUV420SP_ADRENO[]; // ADRENO
     static const char PIXEL_FORMAT_YV12[]; // NV12
     static const char PIXEL_FORMAT_NV12[]; //NV12
@@ -452,6 +454,16 @@ private:
     static const char ISO_1600[];
     static const char ISO_3200[];
     static const char ISO_MANUAL[];
+    static const char ISO_125[];
+    static const char ISO_160[];
+    static const char ISO_250[];
+    static const char ISO_320[];
+    static const char ISO_500[];
+    static const char ISO_640[];
+    static const char ISO_1000[];
+    static const char ISO_1250[];
+    static const char ISO_2000[];
+    static const char ISO_2500[];
 
     // Values for auto exposure settings.
     static const char AUTO_EXPOSURE_FRAME_AVG[];
