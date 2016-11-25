@@ -1297,6 +1297,7 @@ typedef struct {
 typedef struct {
     uint32_t scale;
     float diopter;
+    uint32_t af_step;
 } cam_focus_pos_info_t ;
 
 typedef struct {
