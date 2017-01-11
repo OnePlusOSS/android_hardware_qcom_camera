@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2016, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2017, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -6193,21 +6193,25 @@ int32_t QCameraParameters::initDefaultParameters()
     pic_dim.width = 0;
     pic_dim.height = 0;
 
-    for(uint32_t i = 0;
-            i < (m_pCapability->picture_sizes_tbl_cnt - 1);
-            i++) {
-        if ((pic_dim.width * pic_dim.height) <
-                (int32_t)(m_pCapability->picture_sizes_tbl[i].width *
-                m_pCapability->picture_sizes_tbl[i].height)) {
-            pic_dim.width =
-                    m_pCapability->picture_sizes_tbl[i].width;
-            pic_dim.height =
-                    m_pCapability->picture_sizes_tbl[i].height;
+    if (m_pCapability->picture_sizes_tbl_cnt > 0 &&
+        m_pCapability->picture_sizes_tbl_cnt <= MAX_SIZES_CNT) {
+        for(uint32_t i = 0;
+                i < m_pCapability->picture_sizes_tbl_cnt; i++) {
+            if ((pic_dim.width * pic_dim.height) <
+                    (int32_t)(m_pCapability->picture_sizes_tbl[i].width *
+                    m_pCapability->picture_sizes_tbl[i].height)) {
+                pic_dim.width =
+                        m_pCapability->picture_sizes_tbl[i].width;
+                pic_dim.height =
+                        m_pCapability->picture_sizes_tbl[i].height;
+            }
         }
+        LOGD("max pic size = %d %d", pic_dim.width,
+                pic_dim.height);
+        setMaxPicSize(pic_dim);
+    } else {
+        LOGW("supported picture sizes cnt is 0 or exceeds max!!!");
     }
-    LOGD("max pic size = %d %d", pic_dim.width,
-            pic_dim.height);
-    setMaxPicSize(pic_dim);
 
     setManualCaptureMode(CAM_MANUAL_CAPTURE_TYPE_OFF);
 
@@ -14974,6 +14978,30 @@ int32_t QCameraParameters::updateDtVc(int32_t *dt, int32_t *vc)
 
     LOGH("dt=%d vc=%d",*dt, *vc);
     return rc;
+}
+/*===========================================================================
+ * FUNCTION   : isLinkPreviewForLiveShot()
+ *
+ * DESCRIPTION: Function to check whether link preview for liveshot or not
+ *
+ * PARAMETERS : none
+ *
+ * RETURN     : true: Thumbnail is generated from Preview stream
+ *              false: Thumbnail is generated from main image
+ *==========================================================================*/
+bool QCameraParameters::isLinkPreviewForLiveShot()
+{
+
+   char prop[PROPERTY_VALUE_MAX];
+
+   memset(prop, 0, sizeof(prop));
+   // 0. Thumbnail is generated from main image  (or)
+   // 1. Thumbnail is generated from Preview stream
+   property_get("persist.camera.linkpreview", prop, "0");
+   bool enable = atoi(prop) > 0 ? TRUE : FALSE;
+
+   LOGD("Link preview for thumbnail %d", enable);
+   return enable;
 }
 
 }; // namespace qcamera
