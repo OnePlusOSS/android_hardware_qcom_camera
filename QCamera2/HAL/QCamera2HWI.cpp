@@ -5616,6 +5616,10 @@ int QCamera2HardwareInterface::cancelLiveSnapshot_internal() {
         m_perfLock.lock_rel();
     }
 
+    //wait for deferred (reprocess and jpeg) threads to finish
+    waitDeferredWork(mReprocJob);
+    waitDeferredWork(mJpegJob);
+
     //stop post processor
     m_postprocessor.stop();
 
