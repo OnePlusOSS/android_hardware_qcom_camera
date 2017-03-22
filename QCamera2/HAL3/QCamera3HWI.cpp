@@ -6655,6 +6655,12 @@ QCamera3HardwareInterface::translateCbUrgentMetadataToResultMetadata
                  redeye, flashMode, aeMode);
     }
 
+    IF_META_AVAILABLE(cam_3a_params_t, ae_params, CAM_INTF_META_AEC_INFO, metadata) {
+        LOGD("ae_params->settled = %d and brightness is : %f",
+                ae_params->settled, ae_params->brightness);
+        float brightness_val = ae_params->brightness;
+        camMetadata.update(QCAMERA3_BRIGHTNESS_VALUE, &brightness_val, 1);
+    }
     resultMetadata = camMetadata.release();
     return resultMetadata;
 }
@@ -11748,7 +11754,9 @@ void QCamera3HardwareInterface::setPAAFSupport(
 
     switch (filter_arrangement) {
     case CAM_FILTER_ARRANGEMENT_Y:
-        if (stream_type == CAM_STREAM_TYPE_ANALYSIS) {
+        if ((stream_type == CAM_STREAM_TYPE_PREVIEW) ||
+                (stream_type == CAM_STREAM_TYPE_ANALYSIS) ||
+                (stream_type == CAM_STREAM_TYPE_VIDEO)) {
             feature_mask |= CAM_QCOM_FEATURE_PAAF;
         }
         break;
