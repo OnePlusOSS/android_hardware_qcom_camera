@@ -59,7 +59,6 @@ extern "C" {
 #define FOCUS_PERCISION 0.0000001
 #define CAMERA_MIN_SECURE_BUFFERS 2
 
-
 namespace qcamera {
 // Parameter keys to communicate between camera application and driver.
 const char QCameraParameters::KEY_QC_SUPPORTED_HFR_SIZES[] = "hfr-size-values";
@@ -188,6 +187,9 @@ const char QCameraParameters::KEY_QC_SUPPORTED_RDI_MODES[] = "rdi-mode-values";
 const char QCameraParameters::KEY_QC_SECURE_MODE[] = "secure-mode";
 const char QCameraParameters::KEY_QC_SECURE_MODE_UBWC[] = "secure-mode-ubwc";
 const char QCameraParameters::KEY_QC_SECURE_QUEUE_DEPTH[] = "secure-mode-queue-depth";
+const char QCameraParameters::KEY_QC_SECURE_MODE_AEC_MODE[] = "secure-mode-aec-mode";
+const char QCameraParameters::KEY_QC_SECURE_MODE_EXPOSURE_TIME[] = "secure-mode-exposure-time";
+const char QCameraParameters::KEY_QC_SECURE_MODE_SENSITIVITY[] = "secure-mode-sensitivity";
 const char QCameraParameters::KEY_QC_SUPPORTED_SECURE_MODES[] = "secure-mode-values";
 const char QCameraParameters::ISO_HJR[] = "ISO_HJR";
 const char QCameraParameters::KEY_QC_AUTO_HDR_SUPPORTED[] = "auto-hdr-supported";
@@ -5028,11 +5030,11 @@ int32_t QCameraParameters::setRdiMode(const QCameraParameters& params)
     char prop[PROPERTY_VALUE_MAX];
     memset(prop, 0, sizeof(prop));
 
-    property_get("persist.camera.rdi.mode", prop, VALUE_DISABLE);
+    property_get("persist.camera.rdi.mode", prop, "");
     if ((str != NULL) && (prev_str == NULL || strcmp(str, prev_str) != 0)) {
         LOGD("RDI mode set to %s", str);
         setRdiMode(str);
-    } else if (prev_str == NULL || strcmp(prev_str, prop) != 0 ) {
+    } else if ((strlen(prop)!=0) && (prev_str == NULL || strcmp(prev_str, prop) != 0)) {
         LOGD("RDI mode set to prop: %s", prop);
         setRdiMode(prop);
     }
@@ -5058,12 +5060,12 @@ int32_t QCameraParameters::setSecureMode(const QCameraParameters& params)
     char prop[PROPERTY_VALUE_MAX];
     memset(prop, 0, sizeof(prop));
 
-    property_get("persist.camera.secure.mode", prop, VALUE_DISABLE);
+    property_get("persist.camera.secure.mode", prop, "");
     if ((str != NULL) && (prev_str == NULL || strcmp(str, prev_str) != 0)) {
         LOGD("Secure mode set to KEY: %s", str);
         setSecureMode(str);
         updateParamEntry(KEY_QC_SECURE_MODE, str);
-    } else if (prev_str == NULL || strcmp(prev_str, prop) != 0 ) {
+    } else if ((strlen(prop)!=0) && (prev_str == NULL || strcmp(prev_str, prop) != 0)) {
         LOGD("Secure mode set to prop: %s", prop);
         setSecureMode(prop);
     }
@@ -5099,14 +5101,138 @@ int32_t QCameraParameters::setSecureMode(const QCameraParameters& params)
     str = params.get(KEY_QC_SECURE_QUEUE_DEPTH);
     if (str != NULL) {
         set(KEY_QC_SECURE_QUEUE_DEPTH, str);
-    } else {
-        memset(prop, 0, sizeof(prop));
-        property_get("persist.camera.secure.queuedepth", prop, "2");
-        uint32_t queue_depth = atoi(prop);
-        set(KEY_QC_SECURE_QUEUE_DEPTH, queue_depth);
-        LOGD("Secure Queue depth: %s", prop);
+        LOGD("Secure Queue depth: %s (%d)",
+            str, getSecureQueueDepth());
     }
 
+    return NO_ERROR;
+}
+
+/*==========================================================
+ * FUNCTION   : setSecureModeAecMode
+ *
+ * DESCRIPTION: set AEC mode in Secure mode from user setting
+ *
+ * PARAMETERS :
+ *   @params  : user setting parameters
+ *
+ * RETURN     : int32_t type of status
+ *              NO_ERROR  -- success
+ *              none-zero failure code
+ *===========================================================*/
+int32_t QCameraParameters::setSecureModeAecMode(const QCameraParameters& params)
+{
+    const char *str = params.get(KEY_QC_SECURE_MODE_AEC_MODE);
+    const char *prev_str = get(KEY_QC_SECURE_MODE_AEC_MODE);
+
+    if (!isSecureMode()) {
+        LOGD("AEC mode selection is only avalable in Secure mode!");
+    }
+    else {
+        if ((str != NULL) && (prev_str == NULL || strcmp(str, prev_str) != 0)) {
+            int32_t value = lookupAttr(ON_OFF_MODES_MAP,
+                    PARAM_MAP_SIZE(ON_OFF_MODES_MAP), str);
+            if (value != NAME_NOT_FOUND) {
+                if (ADD_SET_PARAM_ENTRY_TO_BATCH(m_pParamBuf,
+                        CAM_INTF_META_AEC_MODE,
+                        (value)?CAM_AE_MODE_ON:CAM_AE_MODE_OFF))  {
+                    LOGH("Failed to set AEC mode in the parameters");
+                    return BAD_VALUE;
+                }
+                updateParamEntry(KEY_QC_SECURE_MODE, str);
+            }
+            LOGD("AEC mode in Secure mode set to KEY: %s", str);
+        }
+    }
+    return NO_ERROR;
+}
+
+/*===========================================================================
+ * FUNCTION   : setSecureModeSensitivity
+ *
+ * DESCRIPTION: set Sensor Sensitivity in Secure mode from user setting
+ *
+ * PARAMETERS :
+ *   @params  : user setting parameters
+ *
+ * RETURN     : int32_t type of status
+ *              NO_ERROR  -- success
+ *              none-zero failure code
+ *==========================================================================*/
+int32_t QCameraParameters::setSecureModeSensitivity(const QCameraParameters& params)
+{
+    const char *str = params.get(KEY_QC_SECURE_MODE_SENSITIVITY);
+    const char *prev_str = get(KEY_QC_SECURE_MODE_SENSITIVITY);
+
+    if (!isSecureMode()) {
+        LOGD("Sensor Sensitivity selection is only avalable in Secure mode!");
+    }
+    else {
+        if ((str != NULL) && (prev_str == NULL || strcmp(str, prev_str) != 0)) {
+            int32_t sensitivity = atoi(str);
+            if (sensitivity < m_pCapability->sensitivity_range.min_sensitivity) {
+                sensitivity = m_pCapability->sensitivity_range.min_sensitivity;
+            }
+            if (sensitivity > m_pCapability->sensitivity_range.max_sensitivity) {
+                sensitivity = m_pCapability->sensitivity_range.max_sensitivity;
+            }
+            if (ADD_SET_PARAM_ENTRY_TO_BATCH(m_pParamBuf,
+                    CAM_INTF_META_SENSOR_SENSITIVITY,
+                    sensitivity))  {
+                LOGH("Failed to set Sensor Sensitivity in the parameters");
+                return BAD_VALUE;
+            }
+            updateParamEntry(KEY_QC_SECURE_MODE_SENSITIVITY, str);
+            LOGD("Sensor Sensitivity in Secure mode set to KEY: %s (%d)", str, sensitivity);
+        }
+    }
+    return NO_ERROR;
+}
+
+/*===========================================================================
+ * FUNCTION   : setSecureModeExposureTime
+ *
+ * DESCRIPTION: set Exposure Time in Secure mode from user setting
+ *
+ * PARAMETERS :
+ *   @params  : user setting parameters
+ *
+ * RETURN     : int32_t type of status
+ *              NO_ERROR  -- success
+ *              none-zero failure code
+ *==========================================================================*/
+int32_t QCameraParameters::setSecureModeExposureTime(const QCameraParameters& params)
+{
+    const char *str = params.get(KEY_QC_SECURE_MODE_EXPOSURE_TIME);
+    const char *prev_str = get(KEY_QC_SECURE_MODE_EXPOSURE_TIME);
+
+    if (!isSecureMode()) {
+        LOGD("Exposure Time selection is only avalable in Secure mode!");
+    }
+    else {
+        if ((str != NULL) && (prev_str == NULL || strcmp(str, prev_str) != 0)) {
+            double exp_time_ms = atof(str);
+            //input is in milli seconds. Convert to nano sec for backend
+            int64_t exp_time_ns = (int64_t)(exp_time_ms * 1000000L);
+
+            if (exp_time_ns < m_pCapability->exposure_time_range[0]) {
+                exp_time_ns = m_pCapability->exposure_time_range[0];
+            }
+            if (exp_time_ns > m_pCapability->exposure_time_range[1]) {
+                exp_time_ns = m_pCapability->exposure_time_range[1];
+            }
+
+            if (ADD_SET_PARAM_ENTRY_TO_BATCH(m_pParamBuf,
+                    CAM_INTF_META_SENSOR_EXPOSURE_TIME,
+                    exp_time_ns))  {
+                LOGH("Failed to set Exposure Time in the parameters");
+                return BAD_VALUE;
+            }
+            updateParamEntry(KEY_QC_SECURE_MODE_EXPOSURE_TIME, str);
+            LOGD("Exposure Time in Secure mode set to KEY: %s (%" PRId64 "ns)",
+                str, exp_time_ns);
+        }
+    }
     return NO_ERROR;
 }
 
@@ -5513,6 +5639,9 @@ int32_t QCameraParameters::updateParameters(const String8& p,
     if ((rc = setLongshotParam(params)))                final_rc = rc;
     if ((rc = setDualLedCalibration(params)))           final_rc = rc;
     if ((rc = setNoDisplayMode(params)))                final_rc = rc;
+    if ((rc = setSecureModeAecMode(params)))            final_rc = rc;
+    if ((rc = setSecureModeSensitivity(params)))        final_rc = rc;
+    if ((rc = setSecureModeExposureTime(params)))       final_rc = rc;
 
     setQuadraCfa(params);
     setVideoBatchSize();
@@ -7501,11 +7630,15 @@ int32_t QCameraParameters::setFaceRecognition(const char *faceRecog,
 int32_t QCameraParameters::setZoom(int zoom_level)
 {
     char val[16];
+    cam_zoom_info_t zoomInfo;
+    memset(&zoomInfo, 0, sizeof(cam_zoom_info_t));
     snprintf(val, sizeof(val), "%d", zoom_level);
     updateParamEntry(KEY_ZOOM, val);
     LOGH("zoom level: %d", zoom_level);
     mZoomLevel = zoom_level;
-    if (ADD_SET_PARAM_ENTRY_TO_BATCH(m_pParamBuf, CAM_INTF_PARM_ZOOM, zoom_level)) {
+    zoomInfo.user_zoom = zoom_level;
+    zoomInfo.is_stream_zoom_info_valid = 0;
+    if (ADD_SET_PARAM_ENTRY_TO_BATCH(m_pParamBuf, CAM_INTF_PARM_USERZOOM, zoomInfo)) {
         return BAD_VALUE;
     }
 
@@ -9556,7 +9689,12 @@ int32_t QCameraParameters::setAndCommitZoom(int zoom_level)
         return BAD_TYPE;
     }
 
-    if (ADD_SET_PARAM_ENTRY_TO_BATCH(m_pParamBuf, CAM_INTF_PARM_ZOOM, zoom_level)) {
+    cam_zoom_info_t zoomInfo;
+    memset(&zoomInfo, 0, sizeof(cam_zoom_info_t));
+    zoomInfo.user_zoom = zoom_level;
+    zoomInfo.is_stream_zoom_info_valid = 0;
+
+    if (ADD_SET_PARAM_ENTRY_TO_BATCH(m_pParamBuf, CAM_INTF_PARM_USERZOOM, zoomInfo)) {
         LOGE("Failed to update table");
         return BAD_VALUE;
     }
@@ -10353,6 +10491,7 @@ int32_t QCameraParameters::setSecureMode(const char *str)
     int32_t value = lookupAttr(ENABLE_DISABLE_MODES_MAP,
             PARAM_MAP_SIZE(ENABLE_DISABLE_MODES_MAP), str);
     if (value != NAME_NOT_FOUND) {
+        updateParamEntry(KEY_QC_SECURE_MODE, str);
         m_bSecureMode = (value == 0)? false : true;
         return NO_ERROR;
     }
@@ -11267,6 +11406,26 @@ uint8_t QCameraParameters::getNumOfExtraHDROutBufsIfNeeded()
 }
 
 /*===========================================================================
+ * FUNCTION   : getNumOfExtraEISBufsIfNeeded
+ *
+ * DESCRIPTION: get number of extra buffers needed for EIS
+ *
+ * PARAMETERS : none
+ *
+ * RETURN     : number of extra buffers needed by EIS; 0 if EIS 3.0 disabled
+ *==========================================================================*/
+uint8_t QCameraParameters::getNumOfExtraEISBufsIfNeeded()
+{
+    int numOfBufs = 0;
+    if (isHfrMode() && !getBufBatchCount() && (getVideoISType() == IS_TYPE_EIS_3_0)) {
+        char prop[PROPERTY_VALUE_MAX];
+        property_get("persist.camera.is.buffer_delay", prop, "15");
+        numOfBufs = atoi(prop);
+    }
+    return (uint8_t)(numOfBufs);
+}
+
+/*===========================================================================
  * FUNCTION   : getJpegQuality
  *
  * DESCRIPTION: get jpeg encoding quality
@@ -12153,34 +12312,57 @@ int32_t QCameraParameters::getSensorOutputSize(cam_dimension_t max_dim,
         LOGE("Failed to initialize group update table");
         return BAD_TYPE;
     }
-
-    if (ADD_SET_PARAM_ENTRY_TO_BATCH(m_pParamBuf, CAM_INTF_PARM_MAX_DIMENSION, max_dim)) {
-        LOGE("Failed to update table for CAM_INTF_PARM_MAX_DIMENSION ");
-        return BAD_VALUE;
-    }
-
-    rc = commitSetBatch();
-    if (rc != NO_ERROR) {
-        LOGE("Failed to set lock CAM_INTF_PARM_MAX_DIMENSION parm");
-        return rc;
-    }
-
-    if(initBatchUpdate() < 0 ) {
-        LOGE("Failed to initialize group update table");
-        return BAD_TYPE;
-    }
-
-    ADD_GET_PARAM_ENTRY_TO_BATCH(m_pParamBuf, CAM_INTF_PARM_RAW_DIMENSION);
-
-    rc = commitGetBatch();
-    if (rc != NO_ERROR) {
-        LOGE("Failed to get commit CAM_INTF_PARM_RAW_DIMENSION");
-        return rc;
-    }
-
     if (cam_type == MM_CAMERA_TYPE_AUX) {
+        if (ADD_SET_PARAM_ENTRY_TO_BATCH(m_pParamBufAux, CAM_INTF_PARM_MAX_DIMENSION, max_dim)) {
+            LOGE("Failed to update table for CAM_INTF_PARM_MAX_DIMENSION ");
+            return BAD_VALUE;
+        }
+
+        rc = commitSetBatchAux();
+        if (rc != NO_ERROR) {
+            LOGE("Failed to set lock CAM_INTF_PARM_MAX_DIMENSION parm");
+            return rc;
+        }
+
+        if(initBatchUpdate() < 0 ) {
+            LOGE("Failed to initialize group update table");
+            return BAD_TYPE;
+        }
+
+        ADD_GET_PARAM_ENTRY_TO_BATCH(m_pParamBufAux, CAM_INTF_PARM_RAW_DIMENSION);
+
+        rc = commitGetBatchAux();
+        if (rc != NO_ERROR) {
+            LOGE("Failed to get commit CAM_INTF_PARM_RAW_DIMENSION");
+            return rc;
+        }
+
         READ_PARAM_ENTRY(m_pParamBufAux, CAM_INTF_PARM_RAW_DIMENSION, sensor_dim);
     } else {
+        if (ADD_SET_PARAM_ENTRY_TO_BATCH(m_pParamBuf, CAM_INTF_PARM_MAX_DIMENSION, max_dim)) {
+            LOGE("Failed to update table for CAM_INTF_PARM_MAX_DIMENSION ");
+            return BAD_VALUE;
+        }
+
+        rc = commitSetBatch();
+        if (rc != NO_ERROR) {
+            LOGE("Failed to set lock CAM_INTF_PARM_MAX_DIMENSION parm");
+            return rc;
+        }
+
+        if(initBatchUpdate() < 0 ) {
+            LOGE("Failed to initialize group update table");
+            return BAD_TYPE;
+        }
+
+        ADD_GET_PARAM_ENTRY_TO_BATCH(m_pParamBuf, CAM_INTF_PARM_RAW_DIMENSION);
+
+        rc = commitGetBatch();
+        if (rc != NO_ERROR) {
+            LOGE("Failed to get commit CAM_INTF_PARM_RAW_DIMENSION");
+            return rc;
+        }
+
         READ_PARAM_ENTRY(m_pParamBuf, CAM_INTF_PARM_RAW_DIMENSION, sensor_dim);
     }
 
@@ -13168,7 +13350,7 @@ int32_t QCameraParameters::commitGetBatch()
     }
 
     if (i < CAM_INTF_PARM_MAX) {
-        return m_pCamOpsTbl->ops->get_parms(m_pCamOpsTbl->camera_handle, m_pParamBuf);
+        rc = m_pCamOpsTbl->ops->get_parms(m_pCamOpsTbl->camera_handle, m_pParamBuf);
     } else {
         return NO_ERROR;
     }

@@ -517,6 +517,9 @@ private:
     static const char KEY_QC_SECURE_MODE[];
     static const char KEY_QC_SECURE_MODE_UBWC[];
     static const char KEY_QC_SECURE_QUEUE_DEPTH[];
+    static const char KEY_QC_SECURE_MODE_AEC_MODE[];
+    static const char KEY_QC_SECURE_MODE_EXPOSURE_TIME[];
+    static const char KEY_QC_SECURE_MODE_SENSITIVITY[];
     static const char KEY_QC_SUPPORTED_SECURE_MODES[];
 
     // Values for SKIN TONE ENHANCEMENT
@@ -703,6 +706,7 @@ public:
     uint8_t getNumOfRetroSnapshots();
     uint8_t getNumOfExtraHDRInBufsIfNeeded();
     uint8_t getNumOfExtraHDROutBufsIfNeeded();
+    uint8_t getNumOfExtraEISBufsIfNeeded();
 
     bool getRecordingHintValue() {return m_bRecordingHint;}; // return local copy of video hint
     uint32_t getJpegQuality();
@@ -1023,6 +1027,9 @@ private:
     int32_t setMobicat(const QCameraParameters& params);
     int32_t setRdiMode(const QCameraParameters& );
     int32_t setSecureMode(const QCameraParameters& );
+    int32_t setSecureModeAecMode(const QCameraParameters& );
+    int32_t setSecureModeSensitivity(const QCameraParameters& );
+    int32_t setSecureModeExposureTime(const QCameraParameters& );
     int32_t setCacheVideoBuffers(const QCameraParameters& params);
     int32_t setCustomParams(const QCameraParameters& params);
     int32_t setBokehMode(const QCameraParameters& params);
