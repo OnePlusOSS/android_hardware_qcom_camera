@@ -113,7 +113,7 @@ camera_device_ops_t QCamera2HardwareInterface::mCameraOps = {
     .release =                   QCamera2HardwareInterface::release,
     .dump =                      QCamera2HardwareInterface::dump,
 };
-
+uint32_t QCamera2HardwareInterface::sessionId[] = {0xDEADBEEF, 0xDEADBEEF, 0xDEADBEEF};
 /*===========================================================================
  * FUNCTION   : set_preview_window
  *
@@ -1979,7 +1979,8 @@ int QCamera2HardwareInterface::openCamera()
     memset(value, 0, sizeof(value));
     property_get("persist.camera.depth.focus.cb", value, "1");
     bDepthAFCallbacks = atoi(value);
-
+    mCameraHandle->ops->get_session_id(mCameraHandle->camera_handle,
+        &sessionId[mCameraId]);
     return NO_ERROR;
 
 error_exit3:
@@ -2227,7 +2228,7 @@ int QCamera2HardwareInterface::closeCamera()
     mCameraOpened = false;
 
     // Reset Stream config info
-    mParameters.setStreamConfigure(false, false, true);
+    mParameters.setStreamConfigure(false, false, true, sessionId);
 
     // deinit Parameters
     mParameters.deinit();
@@ -4881,7 +4882,7 @@ int32_t QCamera2HardwareInterface::declareSnapshotStreams()
     int rc = NO_ERROR;
 
     // Update stream info configuration
-    rc = mParameters.setStreamConfigure(true, mLongshotEnabled, false);
+    rc = mParameters.setStreamConfigure(true, mLongshotEnabled, false, sessionId);
     if (rc != NO_ERROR) {
         LOGE("setStreamConfigure failed %d", rc);
         return rc;
@@ -8197,7 +8198,7 @@ int32_t QCamera2HardwareInterface::preparePreview()
     int32_t rc = NO_ERROR;
 
     LOGI("E");
-    rc = mParameters.setStreamConfigure(false, false, false);
+    rc = mParameters.setStreamConfigure(false, false, false, sessionId);
     if (rc != NO_ERROR) {
         LOGE("setStreamConfigure failed %d", rc);
         return rc;
