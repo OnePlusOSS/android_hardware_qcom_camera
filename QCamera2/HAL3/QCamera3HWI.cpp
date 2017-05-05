@@ -2350,7 +2350,7 @@ int QCamera3HardwareInterface::configureStreamsPerfLocked(
     }
 
     // Create analysis stream all the time, even when h/w support is not available
-    if (!onlyRaw) {
+    if (!onlyRaw && mCommon.needAnalysisStream()) {
         cam_feature_mask_t analysisFeatureMask = CAM_QCOM_FEATURE_PP_SUPERSET_HAL3;
         setPAAFSupport(analysisFeatureMask, CAM_STREAM_TYPE_ANALYSIS,
                 gCamCapability[mCameraId]->color_arrangement);
