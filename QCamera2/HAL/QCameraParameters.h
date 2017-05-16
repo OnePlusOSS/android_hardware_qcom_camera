@@ -642,6 +642,7 @@ public:
     int32_t commitParameters();
 
     char* getParameters();
+    bool getDualCameraMode();
     void getPreviewFpsRange(int *min_fps, int *max_fps) const {
             CameraParameters::getPreviewFpsRange(min_fps, max_fps);
     }
