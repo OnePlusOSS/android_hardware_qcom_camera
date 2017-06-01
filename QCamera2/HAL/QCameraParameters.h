@@ -1160,6 +1160,12 @@ private:
     void setSyncDCParams();
     void setAsymmetricSnapMode();
 
+    dual_cam_type getDualCameraConfig(cam_capability_t *capsMainCam,
+            cam_capability_t *capsAuxCam);
+    bool isBayer(cam_capability_t *caps);
+    bool isMono(cam_capability_t *caps);
+    inline bool isBayerMono() { return (mDualCamType == DUAL_CAM_BAYER_MONO); };
+
     // Map from strings to values
     static const cam_dimension_t THUMBNAIL_SIZES_MAP[];
     static const QCameraMap<cam_auto_exposure_mode_type> AUTO_EXPOSURE_MAP[];
@@ -1346,6 +1352,7 @@ private:
     uint32_t m_bBokehMode;
     uint32_t m_bBokehBlurLevel;
     uint32_t m_bBokehMpoEnabled;
+    uint8_t  mDualCamType;
 };
 
 }; // namespace qcamera
