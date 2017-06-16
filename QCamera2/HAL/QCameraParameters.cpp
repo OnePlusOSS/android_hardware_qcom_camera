@@ -16846,4 +16846,9 @@ int32_t QCameraParameters::setAfFineTune(const char *FineTuneStr)
     return BAD_VALUE;
 }
 
+bool QCameraParameters::needAnalysisStream()
+{
+    return mCommon.needAnalysisStream();
+}
+
 }; // namespace qcamera
