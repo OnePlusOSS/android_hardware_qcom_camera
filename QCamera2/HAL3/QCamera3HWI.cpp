@@ -2383,6 +2383,9 @@ int QCamera3HardwareInterface::configureStreamsPerfLocked(
         if (!mAnalysisChannel) {
             LOGW("Analysis channel cannot be created");
         }
+    } else {
+        // If we need only RAW streams, mark the camera as STANDALONE
+        mStreamConfigInfo.sync_type = CAM_TYPE_STANDALONE;
     }
 
     //RAW DUMP channel

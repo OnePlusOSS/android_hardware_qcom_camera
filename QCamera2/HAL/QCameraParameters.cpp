@@ -512,6 +512,9 @@ const char QCameraParameters::QC_METADATA_LED_CALIB[] = "metadata-led-calib";
 const char QCameraParameters::QC_METADATA_RTB[] = "metadata-rtb";
 
 const char QCameraParameters::KEY_QC_LED_CALIBRATION[] = "led-calibration";
+// AF fine tune values
+const char QCameraParameters::KEY_QC_AF_FINETUNE[] = "finetune";
+const char QCameraParameters::KEY_QC_SUPPORTED_FINETUNE_MODES[] = "finetune-values";
 
 static const char* portrait = "portrait";
 static const char* landscape = "landscape";
@@ -1028,7 +1031,8 @@ QCameraParameters::QCameraParameters()
       mbundledSnapshot(false),
       mFallback(CAM_NO_FALLBACK),
       mAsymmetricSnapMode(false),
-      mAsymmetricPreviewMode(false)
+      mAsymmetricPreviewMode(false),
+      mDualCamType(DUAL_CAM_WIDE_TELE)
 {
     char value[PROPERTY_VALUE_MAX];
     // TODO: may move to parameter instead of sysprop
@@ -1181,7 +1185,8 @@ QCameraParameters::QCameraParameters(const String8 &params)
     mbundledSnapshot(false),
     mFallback(CAM_NO_FALLBACK),
     mAsymmetricSnapMode(false),
-    mAsymmetricPreviewMode(false)
+    mAsymmetricPreviewMode(false),
+    mDualCamType(DUAL_CAM_WIDE_TELE)
 {
     memset(&m_LiveSnapshotSize, 0, sizeof(m_LiveSnapshotSize));
     memset(&m_default_fps_range, 0, sizeof(m_default_fps_range));
@@ -4580,8 +4585,13 @@ int32_t QCameraParameters::setNoDisplayMode(const QCameraParameters& params)
     LOGD("str_val: %s, prev_str: %s", str_val, prev_str);
 
     if (m_halPPType == CAM_HAL_PP_TYPE_BOKEH) {
-        m_bNoDisplayModeMain = true;
-        m_bNoDisplayModeAux = false;
+        if (isBayerMono()) {
+            m_bNoDisplayModeMain = false;
+            m_bNoDisplayModeAux = true;
+        } else {
+            m_bNoDisplayModeMain = true;
+            m_bNoDisplayModeAux = false;
+        }
         LOGH("Bokeh m_bNoDisplayModeMain = %d      m_bNoDisplayModeAux = %d",
                 m_bNoDisplayModeMain, m_bNoDisplayModeAux);
         return NO_ERROR;
@@ -5526,6 +5536,31 @@ int32_t QCameraParameters::checkFeatureConcurrency()
 }
 
 /*===========================================================================
+ * FUNCTION   : setAfFineTune
+ *
+ * DESCRIPTION: Enable/Disable Af fine search
+ *
+ * PARAMETERS :
+ *   @params  : user setting parameters
+ *
+ * RETURN     : int32_t type of status
+ *              NO_ERROR  -- success
+ *              none-zero failure code
+ *==========================================================================*/
+int32_t QCameraParameters::setAfFineTune(const QCameraParameters& params)
+{
+    const char *str = params.get(KEY_QC_AF_FINETUNE);
+    const char *prev_str = get(KEY_QC_AF_FINETUNE);
+    if (str != NULL) {
+        if (prev_str == NULL ||
+            strcmp(str, prev_str) != 0) {
+            return setAfFineTune(str);
+        }
+    }
+    return NO_ERROR;
+}
+
+/*===========================================================================
  * FUNCTION   : updateParameters
  *
  * DESCRIPTION: update parameters from user setting
@@ -5624,6 +5659,7 @@ int32_t QCameraParameters::updateParameters(const String8& p,
     if ((rc = setInitialExposureIndex(params)))         final_rc = rc;
     if ((rc = setInstantCapture(params)))               final_rc = rc;
     if ((rc = setInstantAEC(params)))                   final_rc = rc;
+    if ((rc = setAfFineTune(params)))                   final_rc = rc;
 
     // update live snapshot size after all other parameters are set
     if ((rc = setLiveSnapshotSize(params)))             final_rc = rc;
@@ -6507,11 +6543,12 @@ int32_t QCameraParameters::initDefaultParameters()
     struct sysinfo info;
     sysinfo(&info);
 
-    LOGH("totalram = %ld, freeram = %ld ", info.totalram,
-        info.freeram);
-    if (info.totalram > TOTAL_RAM_SIZE_512MB) {
+    LOGH("totalram = %ld, freeram = %ld mem_unit = %d ", info.totalram,
+        info.freeram, info.mem_unit);
+    if ((info.totalram * info.mem_unit) > TOTAL_RAM_SIZE_512MB) {
         set(KEY_QC_ZSL_HDR_SUPPORTED, VALUE_TRUE);
     } else {
+        LOGH("Low memory device");
         m_bIsLowMemoryDevice = true;
         set(KEY_QC_ZSL_HDR_SUPPORTED, VALUE_FALSE);
     }
@@ -6541,6 +6578,10 @@ int32_t QCameraParameters::initDefaultParameters()
         set(KEY_QC_SUPPORTED_VIDEO_ROTATION_VALUES, VIDEO_ROTATION_0);
     }
     set(KEY_QC_VIDEO_ROTATION, VIDEO_ROTATION_0);
+
+    // Set AF Fine Tuning
+    set(KEY_QC_SUPPORTED_FINETUNE_MODES, enableDisableValues);
+    setAfFineTune(VALUE_ENABLE);
 
     // Change to enable App team to test Bokeh mode
     // Set min max values for Blur values (min: 0, max: 100, step: 1)
@@ -6771,10 +6812,21 @@ int32_t QCameraParameters::init(cam_capability_t *capabilities, mm_camera_vtbl_t
     rc = m_pCamOpsTbl->ops->get_session_id(m_pCamOpsTbl->camera_handle,
             &sessionId[m_pCapability->camera_index]);
 
+    if (m_pFovControl) {
+        mDualCamType = (uint8_t)getDualCameraConfig(
+                m_pCapability->main_cam_cap, m_pCapability->aux_cam_cap);
+        m_pFovControl->setDualCameraConfig(mDualCamType);
+
+        if (isBayerMono()) {
+            m_defaultHalPPType = CAM_HAL_PP_TYPE_CLEARSIGHT;
+        }
+    }
+
     char prop[PROPERTY_VALUE_MAX];
     memset(prop, 0, sizeof(prop));
-    property_get("persist.camera.halpp", prop, "0");
-    m_defaultHalPPType = (cam_hal_pp_type_t)atoi(prop);
+    property_get("persist.camera.halpp", prop, "");
+    if (strlen(prop) > 0)
+        m_defaultHalPPType = (cam_hal_pp_type_t)atoi(prop);
 
     if (m_defaultHalPPType < CAM_HAL_PP_TYPE_NONE ||
             m_defaultHalPPType >= CAM_HAL_PP_TYPE_MAX) {
@@ -12804,7 +12856,10 @@ int32_t QCameraParameters::setDualCamBundleInfo(bool enable_sync,
         bundle_info[num_cam].sync_control = syncControl;
         bundle_info[num_cam].type = CAM_TYPE_MAIN;
         bundle_info[num_cam].mode = CAM_MODE_PRIMARY;
-        bundle_info[num_cam].cam_role = CAM_ROLE_WIDE;
+        if (isBayerMono())
+            bundle_info[num_cam].cam_role = CAM_ROLE_BAYER;
+        else
+            bundle_info[num_cam].cam_role = CAM_ROLE_WIDE;
         bundle_info[num_cam].sync_3a_mode = sync_3a_mode;
         m_pCamOpsTbl->ops->get_session_id(
                 get_aux_camera_handle(m_pCamOpsTbl->camera_handle), &sessionID);
@@ -12816,7 +12871,10 @@ int32_t QCameraParameters::setDualCamBundleInfo(bool enable_sync,
         bundle_info[num_cam].sync_control = syncControl;
         bundle_info[num_cam].type = CAM_TYPE_AUX;
         bundle_info[num_cam].mode = CAM_MODE_SECONDARY;
-        bundle_info[num_cam].cam_role = CAM_ROLE_TELE;
+        if (isBayerMono())
+            bundle_info[num_cam].cam_role = CAM_ROLE_MONO;
+        else
+            bundle_info[num_cam].cam_role = CAM_ROLE_TELE;
         bundle_info[num_cam].sync_3a_mode = sync_3a_mode;
         m_pCamOpsTbl->ops->get_session_id(
                 get_main_camera_handle(m_pCamOpsTbl->camera_handle), &sessionID);
@@ -15111,27 +15169,34 @@ int32_t QCameraParameters::updatePpFeatureMask(cam_stream_type_t stream_type) {
     // callback, preview, or video streams
     cam_color_filter_arrangement_t filter_arrangement;
     filter_arrangement = m_pCapability->color_arrangement;
+    bool needPAAF = false;
     switch (filter_arrangement) {
     case CAM_FILTER_ARRANGEMENT_RGGB:
     case CAM_FILTER_ARRANGEMENT_GRBG:
     case CAM_FILTER_ARRANGEMENT_GBRG:
     case CAM_FILTER_ARRANGEMENT_BGGR:
         if ((stream_type == CAM_STREAM_TYPE_CALLBACK) ||
-            (stream_type == CAM_STREAM_TYPE_PREVIEW)) {
-            feature_mask |= CAM_QCOM_FEATURE_PAAF;
+                (stream_type == CAM_STREAM_TYPE_PREVIEW)) {
+            needPAAF = true;
         } else if (stream_type == CAM_STREAM_TYPE_VIDEO) {
-            if (getVideoISType() != IS_TYPE_EIS_3_0)
-                feature_mask |= CAM_QCOM_FEATURE_PAAF;
+            if (getVideoISType() != IS_TYPE_EIS_3_0) {
+                needPAAF = true;
+            }
         }
         break;
     case CAM_FILTER_ARRANGEMENT_Y:
         if (stream_type == CAM_STREAM_TYPE_ANALYSIS) {
-            feature_mask |= CAM_QCOM_FEATURE_PAAF;
-            LOGH("add PAAF mask to feature_mask for mono device");
+            needPAAF = true;
         }
         break;
     default:
         break;
+    }
+
+    if (needPAAF && (m_pCapability->qcom_supported_feature_mask
+            & CAM_QCOM_FEATURE_PAAF)) {
+        feature_mask |= CAM_QCOM_FEATURE_PAAF;
+        LOGH("add PAAF mask to feature_mask");
     }
 
     // Enable PPEISCORE for EIS 3.0
@@ -15151,7 +15216,8 @@ int32_t QCameraParameters::updatePpFeatureMask(cam_stream_type_t stream_type) {
         satEnabledFlag = atoi(prop);
 
         if (satEnabledFlag &&
-                (getHalPPType() != CAM_HAL_PP_TYPE_BOKEH)) {
+                (getHalPPType() != CAM_HAL_PP_TYPE_BOKEH) &&
+                (getHalPPType() != CAM_HAL_PP_TYPE_CLEARSIGHT)) {
             LOGH("SAT flag enabled");
             if (stream_type == CAM_STREAM_TYPE_VIDEO &&
                 !is4k2kVideoResolution()) {
@@ -15169,7 +15235,8 @@ int32_t QCameraParameters::updatePpFeatureMask(cam_stream_type_t stream_type) {
         sacEnabledFlag = atoi(prop);
 
         if (sacEnabledFlag  &&
-                (getHalPPType() != CAM_HAL_PP_TYPE_BOKEH)) {
+                (getHalPPType() != CAM_HAL_PP_TYPE_BOKEH) &&
+                (getHalPPType() != CAM_HAL_PP_TYPE_CLEARSIGHT)) {
             LOGH("SAC flag enabled");
             if ((stream_type == CAM_STREAM_TYPE_ANALYSIS) ||
                 (stream_type == CAM_STREAM_TYPE_VIDEO) ||
@@ -16658,7 +16725,8 @@ void QCameraParameters::setAsymmetricSnapMode()
         return;
     }
 
-    if (getHalPPType() == CAM_HAL_PP_TYPE_BOKEH) {
+    if (getHalPPType() == CAM_HAL_PP_TYPE_BOKEH ||
+            (getHalPPType() == CAM_HAL_PP_TYPE_CLEARSIGHT)) {
         mAsymmetricSnapMode = true;
         return;
     }
@@ -16695,6 +16763,87 @@ bool QCameraParameters::isNoDisplayMode(uint32_t cam_type)
     }
     LOGH("bNoDisplayMode: %d cam_type: %d", bNoDisplayMode, cam_type);
     return bNoDisplayMode;
+}
+
+/*===========================================================================
+* FUNCTION   : isBayer
+*
+* DESCRIPTION: check whether sensor is bayer type or not
+*
+* PARAMETERS : cam_capability_t
+*
+* RETURN    : true or false
+*==========================================================================*/
+bool QCameraParameters::isBayer(cam_capability_t *caps)
+{
+    return (caps && (caps->color_arrangement == CAM_FILTER_ARRANGEMENT_RGGB ||
+            caps->color_arrangement == CAM_FILTER_ARRANGEMENT_GRBG ||
+            caps->color_arrangement == CAM_FILTER_ARRANGEMENT_GBRG ||
+            caps->color_arrangement == CAM_FILTER_ARRANGEMENT_BGGR));
+}
+
+/*===========================================================================
+* FUNCTION   : isMono
+*
+* DESCRIPTION: check whether sensor is mono or not
+*
+* PARAMETERS : cam_capability_t
+*
+* RETURN    : true or false
+*==========================================================================*/
+bool QCameraParameters::isMono(cam_capability_t *caps)
+{
+    return (caps && (caps->color_arrangement == CAM_FILTER_ARRANGEMENT_Y));
+}
+
+/*===========================================================================
+* FUNCTION   : getDualCameraConfig
+*
+* DESCRIPTION: get dual camera configuration whether B+M/W+T
+*
+* PARAMETERS : capabilities of main and aux cams
+*
+* RETURN    : dual_cam_type
+*==========================================================================*/
+dual_cam_type QCameraParameters::getDualCameraConfig(cam_capability_t *capsMainCam,
+        cam_capability_t *capsAuxCam)
+{
+    dual_cam_type type = DUAL_CAM_WIDE_TELE;
+    if (isBayer(capsMainCam) && isMono(capsAuxCam)) {
+        type = DUAL_CAM_BAYER_MONO;
+    }
+    return type;
+}
+
+/*===========================================================================
+ * FUNCTION   : setAfFineTune
+ *
+ * DESCRIPTION: set AF fine tune value
+ *
+ * PARAMETERS :
+ *   @FineTuneStr : AF fine tune value string
+ *
+ * RETURN     : int32_t type of status
+ *              NO_ERROR  -- success
+ *              none-zero failure code
+ *==========================================================================*/
+int32_t QCameraParameters::setAfFineTune(const char *FineTuneStr)
+{
+    if (FineTuneStr != NULL) {
+        int32_t value = lookupAttr(ENABLE_DISABLE_MODES_MAP,
+                PARAM_MAP_SIZE(ENABLE_DISABLE_MODES_MAP), FineTuneStr);
+        if (value != NAME_NOT_FOUND) {
+            LOGH("Setting AF fine tune value %s", FineTuneStr);
+            updateParamEntry(KEY_QC_AF_FINETUNE, FineTuneStr);
+            if (ADD_SET_PARAM_ENTRY_TO_BATCH(m_pParamBuf, CAM_INTF_PARM_SKIP_FINE_SCAN, value)) {
+                return BAD_VALUE;
+            }
+            return NO_ERROR;
+        }
+    }
+    LOGE("Invalid AF fine tune value: %s",
+          (FineTuneStr == NULL) ? "NULL" : FineTuneStr);
+    return BAD_VALUE;
 }
 
 }; // namespace qcamera
