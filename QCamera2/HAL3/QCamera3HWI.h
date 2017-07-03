@@ -245,6 +245,7 @@ public:
             QCamera3ProcessingChannel *inputChHandle);
     bool needRotationReprocess();
     bool needJpegExifRotation();
+    bool useExifRotation();
     bool needReprocess(cam_feature_mask_t postprocess_mask);
     bool needJpegRotation();
     cam_denoise_process_type_t getWaveletDenoiseProcessPlate();
@@ -548,6 +549,7 @@ public:
     uint32_t mOpMode;
     bool mStreamConfig;
     QCameraCommon   mCommon;
+    cam_format_t mRdiModeFmt;
 private:
     uint32_t mFirstFrameNumberInBatch;
     camera3_stream_t mDummyBatchStream;
@@ -635,6 +637,7 @@ private:
     bool m_bSensorHDREnabled;
 
     uint8_t mCurrentSceneMode;
+    bool m_bOfflineIsp;
 };
 
 }; // namespace qcamera

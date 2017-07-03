@@ -945,6 +945,8 @@ int QCamera2HardwareInterface::take_picture(struct camera_device *device)
            hw->isLiveSnapshot(), hw->isZSLMode(), hw->isHDRMode(),
            hw->isLongshotEnabled());
 
+    hw->m_bPreparingHardware = true;
+
     // Check for Retro-active Frames
     if ((hw->mParameters.getNumOfRetroSnapshots() > 0) &&
         !hw->isLiveSnapshot() && hw->isZSLMode() &&
@@ -960,6 +962,7 @@ int QCamera2HardwareInterface::take_picture(struct camera_device *device)
             ret = pre_take_picture(device);
             if (ret != NO_ERROR) {
                 LOGE("pre_take_picture failed with ret = %d",ret);
+                hw->m_bPreparingHardware = false;
                 return ret;
             }
         }
@@ -995,6 +998,7 @@ int QCamera2HardwareInterface::take_picture(struct camera_device *device)
             ret = pre_take_picture(device);
             if (ret != NO_ERROR) {
                 LOGE("pre_take_picture failed with ret = %d",ret);
+                hw->m_bPreparingHardware = false;
                 return ret;
             }
         }
@@ -1016,6 +1020,7 @@ int QCamera2HardwareInterface::take_picture(struct camera_device *device)
             hw->mPrepSnapRun = false;
          }
     }
+    hw->m_bPreparingHardware = false;
     LOGI("[KPI Perf]: X ret = %d", ret);
     return ret;
 }
@@ -1646,6 +1651,7 @@ QCamera2HardwareInterface::QCamera2HardwareInterface(uint32_t cameraId)
       m_bPreviewStarted(false),
       m_bFirstPreviewFrameReceived(false),
       m_bRecordStarted(false),
+      m_bPreparingHardware(false),
       m_currentFocusState(CAM_AF_STATE_INACTIVE),
       mDumpFrmCnt(0U),
       mDumpSkipCnt(0U),
@@ -2714,6 +2720,12 @@ uint8_t QCamera2HardwareInterface::getBufNumRequired(
 
             // Add the display minUndequeCount count on top of camera requirement
             bufferCnt += minUndequeCount;
+
+            // Make preview buffer cnt to zero for the slavesession in Bokeh
+            if ((mParameters.getHalPPType() == CAM_HAL_PP_TYPE_BOKEH) &&
+                     isNoDisplayMode(cam_type)) {
+                bufferCnt = 0;
+            }
 
             property_get("persist.camera.preview_yuv", value, "0");
             persist_cnt = atoi(value);
@@ -4306,8 +4318,9 @@ int QCamera2HardwareInterface::autoFocus()
             // Force the cameras to stream for auto focus on both
             forceCameraWakeup();
         }
-        LOGI("Send AUTO FOCUS event. focusMode=%d, m_currentFocusState=%d",
-                focusMode, m_currentFocusState);
+        LOGI("Send AUTO FOCUS event. focusMode=%d, m_currentFocusState=%d \
+                mActiveCameras %d, mMasterCamera %d",
+                focusMode, m_currentFocusState, mActiveCameras, mMasterCamera);
         rc = mCameraHandle->ops->do_auto_focus(mCameraHandle->camera_handle);
         break;
     case CAM_FOCUS_MODE_INFINITY:
@@ -5058,8 +5071,9 @@ int QCamera2HardwareInterface::takePicture()
         }
     }
 
-    LOGI("snap count = %d zsl = %d advanced = %d, active camera:%d",
-            numSnapshots, mParameters.isZSLMode(), mAdvancedCaptureConfigured, mActiveCameras);
+    LOGI("snap count = %d zsl = %d advanced = %d, active camera:%d mMasterCamera:%d",
+            numSnapshots, mParameters.isZSLMode(), mAdvancedCaptureConfigured,
+            mActiveCameras, mMasterCamera);
 
     if (mParameters.isZSLMode()) {
         QCameraChannel *pChannel = m_channels[QCAMERA_CH_TYPE_ZSL];
@@ -6799,8 +6813,8 @@ int32_t QCamera2HardwareInterface::processAutoFocusEvent(cam_auto_focus_data_t &
         return ret;
     }
     cam_focus_mode_type focusMode = mParameters.getFocusMode();
-    LOGH("[AF_DBG]  focusMode=%d, focusState=%d isDepth=%d",
-             focusMode, focus_data.focus_state, focus_data.isDepth);
+    LOGH("[AF_DBG]  focusMode=%d, focusState=%d isDepth=%d mActiveAF=%d",
+             focusMode, focus_data.focus_state, focus_data.isDepth, mActiveAF);
 
     switch (focusMode) {
     case CAM_FOCUS_MODE_AUTO:
@@ -7847,6 +7861,15 @@ int32_t QCamera2HardwareInterface::addStreamToChannel(QCameraChannel *pChannel,
                         cam_type, streamType);
                 aux_cb = NULL;
             }
+        }
+    }
+
+    if ((streamType == CAM_STREAM_TYPE_ANALYSIS) &&
+            !mParameters.needAnalysisStream()) {
+        if (isDualCamera()) {
+            cam_type = MM_CAMERA_TYPE_MAIN;
+        } else {
+            return NO_ERROR;
         }
     }
 
@@ -8955,7 +8978,8 @@ QCameraReprocessChannel *QCamera2HardwareInterface::addReprocChannel(
         pChannel->setReprocCount(1);
     }
 
-    if (isDualCamera() && mBundledSnapshot) {
+    if (isDualCamera() && mBundledSnapshot && !mParameters.isDCmAsymmetricSnapMode()) {
+        // Add extra buffer only if snapshot resolution is symmetric
         minStreamBufNum += 1;
     }
 

@@ -11592,6 +11592,11 @@ bool QCameraParameters::useJpegExifRotation() {
         return true;
     }
 
+    property_get("persist.camera.lib2d.rotation", exifRotation, "off");
+    if (!strcmp(exifRotation, "on")) {
+        return false;
+    }
+
     if (!(m_pCapability->qcom_supported_feature_mask & CAM_QCOM_FEATURE_ROTATION)) {
         return true;
     }
@@ -16844,6 +16849,11 @@ int32_t QCameraParameters::setAfFineTune(const char *FineTuneStr)
     LOGE("Invalid AF fine tune value: %s",
           (FineTuneStr == NULL) ? "NULL" : FineTuneStr);
     return BAD_VALUE;
+}
+
+bool QCameraParameters::needAnalysisStream()
+{
+    return mCommon.needAnalysisStream();
 }
 
 }; // namespace qcamera

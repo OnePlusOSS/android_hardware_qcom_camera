@@ -462,7 +462,8 @@ QCamera3HardwareInterface::QCamera3HardwareInterface(uint32_t cameraId,
       m_pDualCamCmdHeap(NULL),
       m_pDualCamCmdPtr(NULL),
       m_bSensorHDREnabled(false),
-      mCurrentSceneMode(0)
+      mCurrentSceneMode(0),
+      m_bOfflineIsp(false)
 {
     getLogLevel();
     mCommon.init(gCamCapability[cameraId]);
@@ -532,6 +533,7 @@ QCamera3HardwareInterface::QCamera3HardwareInterface(uint32_t cameraId,
     property_get("persist.camera.cacmode.disable", prop, "0");
     m_cacModeDisabled = (uint8_t)atoi(prop);
 
+    mRdiModeFmt = gCamCapability[mCameraId]->rdi_mode_stream_fmt;
     //Load and read GPU library.
     lib_surface_utils = NULL;
     LINK_get_surface_pixel_alignment = NULL;
@@ -2350,7 +2352,7 @@ int QCamera3HardwareInterface::configureStreamsPerfLocked(
     }
 
     // Create analysis stream all the time, even when h/w support is not available
-    if (!onlyRaw) {
+    if (!onlyRaw && mCommon.needAnalysisStream()) {
         cam_feature_mask_t analysisFeatureMask = CAM_QCOM_FEATURE_PP_SUPERSET_HAL3;
         setPAAFSupport(analysisFeatureMask, CAM_STREAM_TYPE_ANALYSIS,
                 gCamCapability[mCameraId]->color_arrangement);
@@ -4745,6 +4747,21 @@ no_error:
 
         if ((1U << CAM_STREAM_TYPE_VIDEO) == channel->getStreamTypeMask()) {
             isVidBufRequested = true;
+        }
+        if (((output.stream->format) == HAL_PIXEL_FORMAT_YCbCr_420_888) ||
+                ((output.stream->format) == HAL_PIXEL_FORMAT_BLOB)) {
+            if(request->input_buffer != NULL) {
+                camera3_stream_buffer_t *inputbuf;
+                inputbuf = request->input_buffer;
+                if((inputbuf->stream->format == HAL_PIXEL_FORMAT_RAW_OPAQUE) ||
+                        (inputbuf->stream->format == HAL_PIXEL_FORMAT_RAW16) ||
+                        (inputbuf->stream->format == HAL_PIXEL_FORMAT_RAW10)) {
+                    LOGH("Use offline ISP for input RAW format: %d", inputbuf->stream->format);
+                    m_bOfflineIsp = true;
+                } else {
+                    m_bOfflineIsp = false;
+                }
+            }
         }
     }
 
@@ -7344,14 +7361,17 @@ void QCamera3HardwareInterface::extractJpegMetadata(
         if (frame_settings.exists(ANDROID_JPEG_ORIENTATION)) {
             int32_t orientation =
                   frame_settings.find(ANDROID_JPEG_ORIENTATION).data.i32[0];
-            if ((!needJpegExifRotation()) && ((orientation == 90) || (orientation == 270))) {
-               //swap thumbnail dimensions for rotations 90 and 270 in jpeg metadata.
+            if ((!needJpegExifRotation() || (needJpegExifRotation() && !useExifRotation()))
+                    && ((orientation == 90) || (orientation == 270))) {
+               //swap thumbnail dimensions for rotations 90 and 270 in jpeg metadata if CPP
+               //or JPEG is doing the rotation
                int32_t temp;
                temp = thumbnail_size[0];
                thumbnail_size[0] = thumbnail_size[1];
                thumbnail_size[1] = temp;
             }
          }
+         LOGD("Thumbnail wxh %dx%d", thumbnail_size[0], thumbnail_size[1]);
          jpegMetadata.update(ANDROID_JPEG_THUMBNAIL_SIZE,
                 thumbnail_size,
                 frame_settings.find(ANDROID_JPEG_THUMBNAIL_SIZE).count);
@@ -12043,6 +12063,33 @@ bool QCamera3HardwareInterface::needJpegExifRotation()
 }
 
 /*===========================================================================
+ * FUNCTION   : useExifRotation
+ *
+ * DESCRIPTION: Check if jpeg exif rotation need to be used
+ *
+ * PARAMETERS : none
+ *
+ * RETURN     : true: if jpeg exif rotation need to be used
+ *                    false: no need
+ *==========================================================================*/
+bool QCamera3HardwareInterface::useExifRotation() {
+    char exifRotation[PROPERTY_VALUE_MAX];
+
+    property_get("persist.camera.exif.rotation", exifRotation, "off");
+
+    if (!strcmp(exifRotation, "on")) {
+        return true;
+    }
+
+    property_get("persist.camera.lib2d.rotation", exifRotation, "off");
+    if (!strcmp(exifRotation, "on")) {
+        return false;
+    }
+
+    return true;
+}
+
+/*===========================================================================
  * FUNCTION   : addOfflineReprocChannel
  *
  * DESCRIPTION: add a reprocess channel that will do reprocess on frames
@@ -12101,6 +12148,11 @@ QCamera3ReprocessChannel *QCamera3HardwareInterface::addOfflineReprocChannel(
         pp_config.hdr_param.hdr_enable = 1;
         pp_config.hdr_param.hdr_need_1x = 0;
         pp_config.hdr_param.hdr_mode = CAM_HDR_MODE_MULTIFRAME;
+    }
+
+    if (m_bOfflineIsp) {
+        LOGH("offline isp flag is set, add feature mask CAM_QCOM_FEATURE_RAW_PROCESSING");
+        pp_config.feature_mask |= CAM_QCOM_FEATURE_RAW_PROCESSING;
     }
 
     rc = pChannel->addReprocStreamsFromSource(pp_config,
