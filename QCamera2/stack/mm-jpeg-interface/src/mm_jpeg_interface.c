@@ -331,7 +331,7 @@ uint32_t jpeg_open(mm_jpeg_ops_t *ops, mm_jpeg_mpo_ops_t *mpo_ops,
   mm_jpeg_obj* jpeg_obj = NULL;
   char prop[PROPERTY_VALUE_MAX];
 
-  property_get("persist.camera.kpi.debug", prop, "0");
+  property_get("persist.vendor.camera.kpi.debug", prop, "0");
   gKpiDebugLevel = atoi(prop);
 
   pthread_mutex_lock(&g_intf_lock);

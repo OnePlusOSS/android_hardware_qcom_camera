@@ -46,7 +46,7 @@ typedef enum {
     CAM_LAST_MODULE
 } cam_modules_t;
 
-/* values that persist.camera.global.debug can be set to */
+/* values that persist.vendor.camera.global.debug can be set to */
 /* all camera modules need to map their internal debug levels to this range */
 typedef enum {
     CAM_GLBL_DBG_NONE  = 0,
