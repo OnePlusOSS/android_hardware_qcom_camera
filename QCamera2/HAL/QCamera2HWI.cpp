@@ -2721,12 +2721,6 @@ uint8_t QCamera2HardwareInterface::getBufNumRequired(
             // Add the display minUndequeCount count on top of camera requirement
             bufferCnt += minUndequeCount;
 
-            // Make preview buffer cnt to zero for the slavesession in Bokeh
-            if ((mParameters.getHalPPType() == CAM_HAL_PP_TYPE_BOKEH) &&
-                     isNoDisplayMode(cam_type)) {
-                bufferCnt = 0;
-            }
-
             property_get("persist.camera.preview_yuv", value, "0");
             persist_cnt = atoi(value);
             if ((persist_cnt < CAM_MAX_NUM_BUFS_PER_STREAM)
@@ -7173,6 +7167,9 @@ int32_t QCamera2HardwareInterface::processRTBData(cam_rtb_msg_type_t rtbData)
     //Check if we are in real time bokeh mode
     if (isDualCamera() && (mParameters.getHalPPType() == CAM_HAL_PP_TYPE_BOKEH)) {
         LOGH("DC RTB metadata: msgType: %d",rtbData);
+
+        mParameters.setBokehSnaphot(rtbData == CAM_RTB_MSG_DEPTH_EFFECT_SUCCESS);
+
         int32_t data_len = sizeof(rtbData);
         int32_t buffer_len = sizeof(rtbData)       //meta type
                 + sizeof(int)                  //data len
