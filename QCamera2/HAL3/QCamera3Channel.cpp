@@ -4763,6 +4763,11 @@ int32_t QCamera3ReprocessChannel::overrideFwkMetadata(
     }
     QCamera3Stream* pMetaReprocStream = mStreams[i];
 
+    if (mMemoryMeta == NULL) {
+        LOGE("mMemoryMeta shouldn't be NULL.");
+        return BAD_VALUE;
+    }
+
     uint32_t bufIdx = 0;
     rc = mMemoryMeta->allocateOne(mFrameLenMeta);
     if (rc < 0) {
@@ -4780,9 +4785,7 @@ int32_t QCamera3ReprocessChannel::overrideFwkMetadata(
     uint32_t buf_idx = mOfflineBuffersIndex;
 
     //Do cache ops before sending for reprocess
-    if (mMemoryMeta != NULL) {
-        mMemoryMeta->cleanInvalidateCache(buf_idx);
-    }
+    mMemoryMeta->cleanInvalidateCache(buf_idx);
 
     rc = pMetaReprocStream->mapBuf(
             CAM_MAPPING_BUF_TYPE_OFFLINE_INPUT_BUF,
@@ -5139,6 +5142,10 @@ int32_t QCamera3ReprocessChannel::addMetaReprocStream(QCamera3Channel *pMetaChan
     LOGD("E");
 
     QCamera3Stream *pMetaStream = pMetaChannel->getStreamByIndex(0);
+    if (pMetaStream == NULL) {
+        LOGE("fail to get metadata stream.");
+        return -1;
+    }
     mSrcStreamHandles[m_numStreams] = pMetaStream->getMyHandle();
     LOGD("meta stream:%p, handle:%p", pMetaStream, mSrcStreamHandles[m_numStreams]);
 
