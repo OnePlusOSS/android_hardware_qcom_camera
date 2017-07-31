@@ -1036,7 +1036,8 @@ QCameraParameters::QCameraParameters()
       mFallback(CAM_NO_FALLBACK),
       mAsymmetricSnapMode(false),
       mAsymmetricPreviewMode(false),
-      mDualCamType(DUAL_CAM_WIDE_TELE)
+      mDualCamType(DUAL_CAM_WIDE_TELE),
+      m_bBokehSnapEnabled(true)
 {
     char value[PROPERTY_VALUE_MAX];
     // TODO: may move to parameter instead of sysprop
@@ -1190,7 +1191,8 @@ QCameraParameters::QCameraParameters(const String8 &params)
     mFallback(CAM_NO_FALLBACK),
     mAsymmetricSnapMode(false),
     mAsymmetricPreviewMode(false),
-    mDualCamType(DUAL_CAM_WIDE_TELE)
+    mDualCamType(DUAL_CAM_WIDE_TELE),
+    m_bBokehSnapEnabled(true)
 {
     memset(&m_LiveSnapshotSize, 0, sizeof(m_LiveSnapshotSize));
     memset(&m_default_fps_range, 0, sizeof(m_default_fps_range));
@@ -6599,7 +6601,7 @@ int32_t QCameraParameters::initDefaultParameters()
 
     // Change to enable App team to test Bokeh mode
     // Set min max values for Blur values (min: 0, max: 100, step: 1)
-    if (isDualCamera()) {
+    if (isDualCamAvailable()) {
         String8 minMaxValues = createMinMaxValuesString(MIN_BLUR, MAX_BLUR, BLUR_STEP);
         set(KEY_QC_SUPPORTED_DEGREES_OF_BLUR, minMaxValues.string());
         set(KEY_QC_IS_BOKEH_MODE_SUPPORTED, 1);
@@ -6830,10 +6832,6 @@ int32_t QCameraParameters::init(cam_capability_t *capabilities, mm_camera_vtbl_t
         mDualCamType = (uint8_t)getDualCameraConfig(
                 m_pCapability->main_cam_cap, m_pCapability->aux_cam_cap);
         m_pFovControl->setDualCameraConfig(mDualCamType);
-
-        if (isBayerMono()) {
-            m_defaultHalPPType = CAM_HAL_PP_TYPE_CLEARSIGHT;
-        }
     }
 
     char prop[PROPERTY_VALUE_MAX];
@@ -10731,8 +10729,11 @@ int32_t QCameraParameters::getStreamFormat(cam_stream_type_t streamType,
             cam_dimension_t video;
             getStreamDimension(CAM_STREAM_TYPE_VIDEO , video);
             getStreamDimension(CAM_STREAM_TYPE_PREVIEW, preview);
-            /* Disable UBWC for preview, though supported, to take advantage of CPP duplication*/
-            if (getRecordingHintValue() == true && (!mCommon.isVideoUBWCEnabled()) &&
+            // Disable UBWC for preview, 
+            // 1.Though supported for preview, to take advantage of CPP duplication
+            // 2.When Lowpower mode and Video UBWC set, since CPP supports only NV21/NV21_venus
+            if (getRecordingHintValue() == true && (!mCommon.isVideoUBWCEnabled()||
+                (isLowPowerMode() && mCommon.isVideoUBWCEnabled())) &&
                 (video.width == preview.width) &&
                 (video.height == preview.height)) {
 #if VENUS_PRESENT
@@ -10786,7 +10787,7 @@ int32_t QCameraParameters::getStreamFormat(cam_stream_type_t streamType,
         }
         break;
     case CAM_STREAM_TYPE_VIDEO:
-        if (isUBWCEnabled()) {
+        if (isUBWCEnabled() && !isLowPowerMode()) {
             if (mCommon.isVideoUBWCEnabled()) {
                 format = CAM_FORMAT_YUV_420_NV12_UBWC;
             } else {
@@ -16408,7 +16409,9 @@ bool QCameraParameters::needSnapshotPP()
     // Disable Snapshot Postprocessing if any of the below features are enabled
     if ((!maxPicSize  &&  (getHalPPType() != CAM_HAL_PP_TYPE_BOKEH)) ||
             m_bLongshotEnabled || m_bRecordingHint ||
-            m_bRedEyeReduction || isAdvCamFeaturesEnabled() || getQuadraCfa()) {
+            m_bRedEyeReduction || isAdvCamFeaturesEnabled() || getQuadraCfa()
+            || (isBayerMono() && (getHalPPType() == CAM_HAL_PP_TYPE_NONE))
+            || ((getHalPPType() == CAM_HAL_PP_TYPE_BOKEH) && !m_bBokehSnapEnabled)) {
         return false;
     } else {
         return true;
@@ -16883,6 +16886,26 @@ bool QCameraParameters::needAnalysisStream()
 void QCameraParameters::getDepthMapSize(int &width, int &height)
 {
     qrcp::getDepthMapSize(CAM_BOKEH_TELE_WIDTH, CAM_BOKEH_TELE_HEIGHT, width, height);
+}
+
+void QCameraParameters::setBokehSnaphot(bool enable)
+{
+    if (m_bBokehSnapEnabled != enable) {
+        LOGD("%s bokeh snapshot", enable?"enabling":"disabling");
+        m_bBokehSnapEnabled = enable;
+    }
+}
+
+bool QCameraParameters::isDualCamAvailable()
+{
+    bool available = false;
+    for (uint8_t cameraId = 0; cameraId < get_num_of_cameras_to_expose(); cameraId++) {
+        if(is_dual_camera_by_idx(cameraId)) {
+            available = true;
+            break;
+        }
+    }
+    return available;
 }
 
 }; // namespace qcamera
