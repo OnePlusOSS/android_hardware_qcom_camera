@@ -806,7 +806,6 @@ void QCamera2HardwareInterface::synchronous_stream_cb_routine(
     LOGD("%p Enqueue Buffer to display %d frame Time = %lld Display Time = %lld",
             pme, idx, frameTime, mPreviewTimestamp);
     err = memory->enqueueBuffer(idx, mPreviewTimestamp);
-
     if (err == NO_ERROR) {
         pthread_mutex_lock(&pme->mGrallocLock);
         pme->mLastPreviewFrameID = frame->frame_idx;
@@ -2862,14 +2861,14 @@ void QCamera2HardwareInterface::dumpFrameToFile(QCameraStream *stream,
                     switch (dump_type) {
                     case QCAMERA_DUMP_FRM_PREVIEW:
                         {
-                            snprintf(buf, sizeof(buf), "%dp_%dx%d_%d.yuv",
-                                    dumpFrmCnt, dim.width, dim.height, frame->frame_idx);
+                            snprintf(buf, sizeof(buf), "%dp_%dx%d_%d_%d.yuv",
+                                    dumpFrmCnt, dim.width, dim.height, frame->frame_idx, mCameraId);
                         }
                         break;
                     case QCAMERA_DUMP_FRM_THUMBNAIL:
                         {
-                            snprintf(buf, sizeof(buf), "%dt_%dx%d_%d.yuv",
-                                    dumpFrmCnt, dim.width, dim.height, frame->frame_idx);
+                            snprintf(buf, sizeof(buf), "%dt_%dx%d_%d_%d.yuv",
+                                    dumpFrmCnt, dim.width, dim.height, frame->frame_idx, mCameraId);
                         }
                         break;
                     case QCAMERA_DUMP_FRM_SNAPSHOT:
@@ -2880,11 +2879,13 @@ void QCamera2HardwareInterface::dumpFrameToFile(QCameraStream *stream,
                                 stream->getFrameDimension(dim);
                             }
                             if (misc != NULL) {
-                                snprintf(buf, sizeof(buf), "%ds_%dx%d_%d_%s.yuv",
-                                        dumpFrmCnt, dim.width, dim.height, frame->frame_idx, misc);
+                                snprintf(buf, sizeof(buf), "%ds_%dx%d_%d_%s_%d.yuv",
+                                        dumpFrmCnt, dim.width, dim.height, frame->frame_idx, misc,
+                                        mCameraId);
                             } else {
-                                snprintf(buf, sizeof(buf), "%ds_%dx%d_%d.yuv",
-                                        dumpFrmCnt, dim.width, dim.height, frame->frame_idx);
+                                snprintf(buf, sizeof(buf), "%ds_%dx%d_%d_%d.yuv",
+                                        dumpFrmCnt, dim.width, dim.height, frame->frame_idx,
+                                        mCameraId);
                             }
                         }
                         break;
@@ -2892,32 +2893,34 @@ void QCamera2HardwareInterface::dumpFrameToFile(QCameraStream *stream,
                         {
                             stream->getFrameDimension(dim);
                             if (misc != NULL) {
-                                snprintf(buf, sizeof(buf), "%dir_%dx%d_%d_%s.yuv",
-                                        dumpFrmCnt, dim.width, dim.height, frame->frame_idx, misc);
+                                snprintf(buf, sizeof(buf), "%dir_%dx%d_%d_%s_%d.yuv",
+                                        dumpFrmCnt, dim.width, dim.height, frame->frame_idx, misc,
+                                        mCameraId);
                             } else {
-                                snprintf(buf, sizeof(buf), "%dir_%dx%d_%d.yuv",
-                                        dumpFrmCnt, dim.width, dim.height, frame->frame_idx);
+                                snprintf(buf, sizeof(buf), "%dir_%dx%d_%d_%d.yuv",
+                                        dumpFrmCnt, dim.width, dim.height, frame->frame_idx,
+                                        mCameraId);
                             }
                         }
                         break;
                     case QCAMERA_DUMP_FRM_VIDEO:
                         {
-                            snprintf(buf, sizeof(buf), "%dv_%dx%d_%d.yuv",
-                                    dumpFrmCnt, dim.width, dim.height, frame->frame_idx);
+                            snprintf(buf, sizeof(buf), "%dv_%dx%d_%d_%d.yuv",
+                                    dumpFrmCnt, dim.width, dim.height, frame->frame_idx, mCameraId);
                         }
                         break;
                     case QCAMERA_DUMP_FRM_RAW:
                         {
                             mParameters.getStreamDimension(CAM_STREAM_TYPE_RAW, dim);
-                            snprintf(buf, sizeof(buf), "%dr_%dx%d_%d.raw",
-                                    dumpFrmCnt, dim.width, dim.height, frame->frame_idx);
+                            snprintf(buf, sizeof(buf), "%dr_%dx%d_%d_%d.raw",
+                                    dumpFrmCnt, dim.width, dim.height, frame->frame_idx, mCameraId);
                         }
                         break;
                     case QCAMERA_DUMP_FRM_JPEG:
                         {
                             mParameters.getStreamDimension(CAM_STREAM_TYPE_SNAPSHOT, dim);
-                            snprintf(buf, sizeof(buf), "%dj_%dx%d_%d.yuv",
-                                    dumpFrmCnt, dim.width, dim.height, frame->frame_idx);
+                            snprintf(buf, sizeof(buf), "%dj_%dx%d_%d_%d.yuv",
+                                    dumpFrmCnt, dim.width, dim.height, frame->frame_idx, mCameraId);
                         }
                         break;
                     default:
