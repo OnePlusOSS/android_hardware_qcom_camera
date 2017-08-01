@@ -165,6 +165,12 @@ typedef struct {
     /* Reserved for future use */
     float      reserved[RELCAM_CALIB_RESERVED_MAX];
 } cam_related_system_calibration_data_t;
+
+typedef struct {
+    int meta_type;
+    int data_len;
+    cam_related_system_calibration_data_t otp_data;
+} cam_otp_data_t;
 #pragma pack()
 
 typedef struct {
