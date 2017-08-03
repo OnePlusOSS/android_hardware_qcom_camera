@@ -9349,6 +9349,16 @@ int QCamera3HardwareInterface::initStaticMetadata(uint32_t cameraId)
     staticInfo.update(QCAMERA3_STATS_IS_HDR_SCENE_CONFIDENCE_RANGE,
             is_hdr_confidence_range, 2);
 
+    if (gCamCapability[cameraId]->is_quadracfa_sensor) {
+        uint8_t is_qcfa_sensor = 1;
+        int32_t dim[2];
+        dim[0] = gCamCapability[cameraId]->quadra_cfa_dim[0].width;
+        dim[1] = gCamCapability[cameraId]->quadra_cfa_dim[0].height;
+        LOGD("vendor tag for quadra cfa, dim:%dx%d", dim[0], dim[1]);
+        staticInfo.update(QCAMERA3_IS_QUADRA_CFA_SENSOR, &is_qcfa_sensor, 1);
+        staticInfo.update(QCAMERA3_SUPPORT_QUADRA_CFA_DIM, dim, 2);
+    }
+
     gStaticMetadata[cameraId] = staticInfo.release();
     return rc;
 }
