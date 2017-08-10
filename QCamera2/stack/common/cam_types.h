@@ -2817,6 +2817,7 @@ typedef struct {
     cam_area_t               af_roi;        /* AF roi info */
     /* Information for CPP reprocess */
     cam_dyn_img_data_t       dyn_mask;      /* Post processing dynamic feature mask */
+    int32_t                  frame_number;  /* Backend frame number*/
 } cam_reprocess_info_t;
 
 /***********************************
