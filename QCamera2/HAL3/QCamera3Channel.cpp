@@ -463,6 +463,17 @@ QCamera3Stream *QCamera3Channel::getStreamByIndex(uint32_t index)
 }
 
 /*===========================================================================
+ * FUNCTION   : getPaddingInfo
+ *
+ * DESCRIPTION: return stream padding info
+ *
+ * RETURN     : ptr to padding info structure
+ *==========================================================================*/
+ cam_padding_info_t* QCamera3Channel::getPaddingInfo() {
+    return &mPaddingInfo;
+}
+
+/*===========================================================================
  * FUNCTION   : streamCbRoutine
  *
  * DESCRIPTION: callback routine for stream
@@ -3205,6 +3216,7 @@ void QCamera3PicChannel::jpegEvtHandle(jpeg_job_status_t status,
     buffer_handle_t *resultBuffer = NULL;
     buffer_handle_t *jpegBufferHandle = NULL;
     int resultStatus = CAMERA3_BUFFER_STATUS_OK;
+    bool isHDR = false;
     camera3_stream_buffer_t result;
     camera3_jpeg_blob_t jpegHeader;
 
@@ -3222,8 +3234,8 @@ void QCamera3PicChannel::jpegEvtHandle(jpeg_job_status_t status,
 
         if (NULL != job) {
             uint32_t bufIdx = (uint32_t)job->jpeg_settings->out_buf_index;
-            LOGD("jpeg out_buf_index: %d", bufIdx);
-
+            LOGD("jpeg out_buf_index: %d and if HDR :%d", bufIdx, job->jpeg_settings->hdr_snapshot);
+            isHDR = job->jpeg_settings->hdr_snapshot;
             //Construct jpeg transient header of type camera3_jpeg_blob_t
             //Append at the end of jpeg image of buf_filled_len size
 
@@ -3319,15 +3331,19 @@ void QCamera3PicChannel::jpegEvtHandle(jpeg_job_status_t status,
             } else {
                 LOGE("Snapshot buffer not found!");
             }
-
-            LOGI("Issue Jpeg Callback frameNumber = %d status = %d",
-                    resultFrameNumber, resultStatus);
-            if (obj->mChannelCB) {
-                obj->mChannelCB(NULL,
-                        &result,
-                        (uint32_t)resultFrameNumber,
-                        false,
-                        obj->mUserData);
+            if(isHDR) {
+               obj->mPostProcStarted = false;
+               obj->m_postprocessor.mChannelStop = false;
+            } else {
+                LOGI("Issue Jpeg Callback frameNumber = %d status = %d and %d",
+                        resultFrameNumber, resultStatus, isHDR);
+                if (obj->mChannelCB) {
+                    obj->mChannelCB(NULL,
+                            &result,
+                            (uint32_t)resultFrameNumber,
+                            false,
+                            obj->mUserData);
+                }
             }
 
             // release internal data for jpeg job
@@ -3360,6 +3376,17 @@ void QCamera3PicChannel::jpegEvtHandle(jpeg_job_status_t status,
             obj->m_postprocessor.releaseOfflineBuffers(false);
             obj->m_postprocessor.releaseJpegJobData(job);
             free(job);
+            if(isHDR) {
+               LOGD("Calling PostProc Stopped sending ");
+               if (obj->mChannelCB) {
+                   obj->mChannelCB(NULL,
+                           &result,
+                           (uint32_t)resultFrameNumber,
+                           false,
+                           obj->mUserData);
+               }
+               obj->m_postprocessor.stop(true);
+            }
         }
 
         return;
@@ -3542,6 +3569,7 @@ int32_t QCamera3PicChannel::request(buffer_handle_t *buffer,
     }
 
     // Start postprocessor
+    LOGD(" Starting Postproc Channel");
     startPostProc(reproc_cfg);
 
     if (!internalRequest) {
@@ -3661,6 +3689,13 @@ void QCamera3PicChannel::dataNotifyCB(mm_camera_super_buf_t *recvd_frame,
     return;
 }
 
+void QCamera3PicChannel::freeBufferForFrame(mm_camera_super_buf_t *frame)
+{
+    Mutex::Autolock lock(mFreeBuffersLock);
+    LOGD(" Freeing the Buffer");
+    mFreeBufferList.push_back(frame->bufs[0]->buf_idx);
+}
+
 /*===========================================================================
  * FUNCTION   : streamCbRoutine
  *
@@ -3711,6 +3746,7 @@ void QCamera3PicChannel::streamCbRoutine(mm_camera_super_buf_t *super_frame,
         LOGD("Internal Request recycle frame");
         Mutex::Autolock lock(mFreeBuffersLock);
         mFreeBufferList.push_back(frameIndex);
+        free(super_frame);
         return;
     }
 
@@ -3931,16 +3967,20 @@ QCamera3ReprocessChannel::QCamera3ReprocessChannel(uint32_t cam_handle,
     inputChHandle(ch_hdl),
     mOfflineBuffersIndex(-1),
     mFrameLen(0),
+    mFrameLenMeta(0),
     mReprocessType(REPROCESS_TYPE_NONE),
     m_pSrcChannel(NULL),
     m_pMetaChannel(NULL),
     mMemory(NULL),
+    mMemoryMeta(NULL),
     mGrallocMemory(0),
-    mReprocessPerfMode(false)
+    mReprocessPerfMode(false),
+    m_bOfflineIsp(false)
 {
     memset(mSrcStreamHandles, 0, sizeof(mSrcStreamHandles));
     mOfflineBuffersIndex = mNumBuffers -1;
     mOfflineMetaIndex = (int32_t) (2*mNumBuffers -1);
+    memset(&m_processedMetaBuf, 0, sizeof(mm_camera_buf_def_t));
 }
 
 
@@ -4053,6 +4093,15 @@ void QCamera3ReprocessChannel::streamCbRoutine(mm_camera_super_buf_t *super_fram
     cam_dimension_t dim;
     cam_frame_len_offset_t offset;
 
+    // TODO: here assume meta always comes befofe raw reprocess stream
+    if (m_bOfflineIsp && isMetaReprocStream(stream)) {
+        m_processedMetaBuf = *(super_frame->bufs[0]);
+        // as we cached the meta reproc output,
+        // we can deallocate original meta reproc stream buffers here
+        // righ now, deallocate buffer in QCamera3ReprocessChannel::bufDone()/putStreamBufs()
+        return;
+    }
+
     memset(&dim, 0, sizeof(dim));
     memset(&offset, 0, sizeof(cam_frame_len_offset_t));
     if(!super_frame) {
@@ -4092,7 +4141,8 @@ void QCamera3ReprocessChannel::streamCbRoutine(mm_camera_super_buf_t *super_fram
         if (mChannelCB) {
             mChannelCB(NULL, NULL, resultFrameNumber, true, mUserData);
         }
-        obj->m_postprocessor.processPPData(frame);
+        obj->m_postprocessor.processPPData(frame,
+                m_bOfflineIsp ? ((const metadata_buffer_t*)m_processedMetaBuf.buffer) : NULL);
     } else {
         buffer_handle_t *resultBuffer;
         frameIndex = (uint8_t)super_frame->bufs[0]->buf_idx;
@@ -4167,6 +4217,28 @@ int32_t QCamera3ReprocessChannel::resetToCamPerfNormal(uint32_t frameNumber)
 }
 
 /*===========================================================================
+ * FUNCTION   : getOfflineMetaStreamBufs
+ *
+ * DESCRIPTION: register the buffers of the meta reprocess stream
+ *
+ * PARAMETERS : none
+ *
+ * RETURN     : QCamera3StreamMem *
+ *==========================================================================*/
+QCamera3StreamMem* QCamera3ReprocessChannel::getMetaStreamBufs(uint32_t len)
+{
+    LOGD("E. len:%d", len);
+    mMemoryMeta = new QCamera3StreamMem(mNumBuffers, false);
+    mFrameLenMeta = len;
+    if (!mMemoryMeta) {
+        LOGE("unable to create meta reproc memory");
+        return NULL;
+    }
+
+    return mMemoryMeta;
+}
+
+/*===========================================================================
  * FUNCTION   : getStreamBufs
  *
  * DESCRIPTION: register the buffers of the reprocess channel
@@ -4208,6 +4280,26 @@ void QCamera3ReprocessChannel::putStreamBufs()
    } else {
        mGrallocMemory.unregisterBuffers();
    }
+}
+
+/*===========================================================================
+ * FUNCTION   : putMetaStreamBufs
+ *
+ * DESCRIPTION: release the reprocess channel buffers
+ *
+ * PARAMETERS : none
+ *
+ * RETURN     :
+ *==========================================================================*/
+void QCamera3ReprocessChannel::putMetaStreamBufs()
+{
+    LOGD("put stream bufs for offline meta");
+    if (mMemoryMeta != NULL) {
+        mMemoryMeta->deallocate();
+        delete mMemoryMeta;
+        mMemoryMeta = NULL;
+    }
+    return;
 }
 
 /*===========================================================================
@@ -4275,7 +4367,6 @@ int32_t QCamera3ReprocessChannel::stop()
 {
     ATRACE_CAMSCOPE_CALL(CAMSCOPE_HAL3_REPROC_CH_STOP);
     int32_t rc = NO_ERROR;
-
     rc = QCamera3Channel::stop();
     rc |= m_camOps->stop_channel(m_camHandle, m_handle);
     // Unmapping the buffers
@@ -4346,6 +4437,8 @@ QCamera3Stream * QCamera3ReprocessChannel::getSrcStreamBySrcHandle(uint32_t srcH
  *==========================================================================*/
 int32_t QCamera3ReprocessChannel::unmapOfflineBuffers(bool all)
 {
+    LOGD("E. all = %d, m_numStreams:%d", all, m_numStreams);
+    int unmap_cnt = m_numStreams;
     int rc = NO_ERROR;
     {
         Mutex::Autolock lock(mOfflineBuffersLock);
@@ -4366,7 +4459,10 @@ int32_t QCamera3ReprocessChannel::unmapOfflineBuffers(bool all)
                }
                if (!all) {
                    mOfflineBuffers.erase(it);
-                   break;
+                   unmap_cnt--;
+                   if (unmap_cnt == 0) {
+                       break;
+                   }
                }
             }
             if (all) {
@@ -4377,6 +4473,7 @@ int32_t QCamera3ReprocessChannel::unmapOfflineBuffers(bool all)
 
     Mutex::Autolock lock(mOfflineMetaBuffersLock);
     if (!mOfflineMetaBuffers.empty()) {
+        unmap_cnt = m_numStreams;
         QCamera3Stream *stream = NULL;
         List<OfflineBuffer>::iterator it = mOfflineMetaBuffers.begin();
         for (; it != mOfflineMetaBuffers.end(); it++) {
@@ -4393,7 +4490,10 @@ int32_t QCamera3ReprocessChannel::unmapOfflineBuffers(bool all)
            }
            if (!all) {
                mOfflineMetaBuffers.erase(it);
-               break;
+               unmap_cnt--;
+               if (unmap_cnt == 0) {
+                   break;
+               }
            }
         }
         if (all) {
@@ -4424,6 +4524,10 @@ int32_t QCamera3ReprocessChannel::bufDone(mm_camera_super_buf_t *recvd_frame)
         uint32_t buf_idx = recvd_frame->bufs[0]->buf_idx;
         mFreeBufferList.push_back(buf_idx);
 
+        if (m_bOfflineIsp && mMemoryMeta != NULL) {
+            LOGD("deallocate memory for meta reproc stream");
+            mMemoryMeta->deallocate();
+        }
     } else {
         LOGE("Fatal. Not supposed to be here");
         rc = BAD_VALUE;
@@ -4647,6 +4751,112 @@ int32_t QCamera3ReprocessChannel::overrideFwkMetadata(
 }
 
 /*===========================================================================
+ * FUNCTION   : doMetaReprocessOffline
+ *
+ * DESCRIPTION: request to do a reprocess on meta frame
+ *
+ * PARAMETERS :
+ *   @frame     : input frame for reprocessing
+ *
+ * RETURN     : int32_t type of status
+ *              NO_ERROR  -- success
+ *              none-zero failure code
+ *==========================================================================*/
+ int32_t  QCamera3ReprocessChannel::doMetaReprocessOffline(
+        qcamera_fwk_input_pp_data_t *frame)
+{
+    int32_t rc = 0;
+    OfflineBuffer mappedBuffer;
+    LOGD("E");
+
+    if (!m_bOfflineIsp) {
+        LOGE("meta reprocess is not allowed when m_bOfflineIsp is not set");
+        return BAD_VALUE;
+    }
+
+    uint32_t i;
+    for (i = 0; i < m_numStreams; i++) {
+        if (isMetaReprocStream(mStreams[i])) {
+            LOGD("found meta reproc stream idx:%d, src stream handle:%x", i, mSrcStreamHandles[i]);
+            break;
+        }
+    }
+    if (i >= m_numStreams) {
+        LOGE("can't find meta reproc stream!");
+        return BAD_VALUE;
+    }
+    QCamera3Stream* pMetaReprocStream = mStreams[i];
+
+    if (mMemoryMeta == NULL) {
+        LOGE("mMemoryMeta shouldn't be NULL.");
+        return BAD_VALUE;
+    }
+
+    uint32_t bufIdx = 0;
+    rc = mMemoryMeta->allocateOne(mFrameLenMeta);
+    if (rc < 0) {
+        LOGE("Failed allocating heap buffer. Fatal");
+        return BAD_VALUE;
+    } else {
+        bufIdx = (uint32_t)rc;
+    }
+
+    LOGD("allocate one buffer, len:%d, idx:%d", mFrameLenMeta, bufIdx);
+    mMemoryMeta->markFrameNumber(bufIdx, frame->frameNumber);
+    rc = pMetaReprocStream->bufDone(bufIdx);
+
+    // map offline buffers
+    uint32_t buf_idx = mOfflineBuffersIndex;
+
+    //Do cache ops before sending for reprocess
+    mMemoryMeta->cleanInvalidateCache(buf_idx);
+
+    rc = pMetaReprocStream->mapBuf(
+            CAM_MAPPING_BUF_TYPE_OFFLINE_INPUT_BUF,
+            buf_idx, -1,
+            frame->metadata_buffer.fd, frame->metadata_buffer.buffer,
+            frame->metadata_buffer.frame_len);
+    if (NO_ERROR == rc) {
+        mappedBuffer.index = buf_idx;
+        mappedBuffer.stream = pMetaReprocStream;
+        mappedBuffer.type = CAM_MAPPING_BUF_TYPE_OFFLINE_INPUT_BUF;
+        mOfflineBuffers.push_back(mappedBuffer);
+        LOGD("Mapped buffer with index %d", buf_idx);
+    }
+
+    uint32_t meta_buf_idx = mOfflineMetaIndex;
+    rc |= pMetaReprocStream->mapBuf(
+            CAM_MAPPING_BUF_TYPE_OFFLINE_META_BUF,
+            meta_buf_idx, -1,
+            frame->metadata_buffer.fd, frame->metadata_buffer.buffer,
+            frame->metadata_buffer.frame_len);
+    if (NO_ERROR == rc) {
+        mappedBuffer.index = meta_buf_idx;
+        mappedBuffer.stream = pMetaReprocStream;
+        mappedBuffer.type = CAM_MAPPING_BUF_TYPE_OFFLINE_META_BUF;
+        mOfflineMetaBuffers.push_back(mappedBuffer);
+        LOGD("Mapped meta buffer with index %d", meta_buf_idx);
+    }
+
+    cam_stream_parm_buffer_t param;
+    memset(&param, 0, sizeof(cam_stream_parm_buffer_t));
+    param.type = CAM_STREAM_PARAM_TYPE_DO_REPROCESS;
+    param.reprocess.buf_index = buf_idx;
+    param.reprocess.frame_idx = frame->input_buffer.frame_idx;
+    param.reprocess.meta_present = 1;
+    param.reprocess.meta_buf_index = meta_buf_idx;
+
+    LOGI("Offline reprocessing id = %d buf Id = %d meta index = %d",
+                param.reprocess.frame_idx, param.reprocess.buf_index,
+                param.reprocess.meta_buf_index);
+    rc = pMetaReprocStream->setParameter(param);
+
+    LOGE("X, rc = %d", rc);
+    return rc;
+}
+
+
+/*===========================================================================
  * FUNCTION   : doReprocessOffline
  *
  * DESCRIPTION: request to do a reprocess on the frame
@@ -4690,6 +4900,14 @@ int32_t QCamera3ReprocessChannel::overrideFwkMetadata(
     if ((0 == m_numStreams) || (NULL == mStreams[0])) {
         LOGE("Reprocess stream not initialized!");
         return NO_INIT;
+    }
+
+    if (m_bOfflineIsp) {
+        LOGH("do meta offline reprocess first");
+        rc = doMetaReprocessOffline(frame);
+        if (rc != NO_ERROR) {
+            LOGE("meta stream setParameter for reprocess failed");
+        }
     }
 
     QCamera3Stream *pStream = mStreams[0];
@@ -4923,6 +5141,81 @@ int32_t QCamera3ReprocessChannel::doReprocess(int buf_fd, void *buffer, size_t b
 }
 
 /*===========================================================================
+ * FUNCTION   : addMetaReprocStream
+ *
+ * DESCRIPTION: add metadata reprocess stream from metadata channel
+ *
+ * PARAMETERS :
+ *   @config         : pp feature configuration
+ *   @src_config     : source reprocess configuration
+ *   @isType         : type of image stabilization required on this stream
+ *   @pMetaChannel   : ptr to metadata channel to get corresp. metadata
+ *
+ *
+ * RETURN     : int32_t type of status
+ *              NO_ERROR  -- success
+ *              none-zero failure code
+ *==========================================================================*/
+int32_t QCamera3ReprocessChannel::addMetaReprocStream(QCamera3Channel *pMetaChannel)
+{
+    int32_t rc = 0;
+    cam_stream_reproc_config_t reproc_cfg;
+    cam_dimension_t meta_dim = {0, 0};
+    cam_format_t meta_stream_fmt = CAM_FORMAT_MAX;
+
+    LOGD("E");
+
+    QCamera3Stream *pMetaStream = pMetaChannel->getStreamByIndex(0);
+    if (pMetaStream == NULL) {
+        LOGE("fail to get metadata stream.");
+        return -1;
+    }
+    mSrcStreamHandles[m_numStreams] = pMetaStream->getMyHandle();
+    LOGD("meta stream:%p, handle:%p", pMetaStream, mSrcStreamHandles[m_numStreams]);
+
+    meta_dim.width = (int32_t)sizeof(metadata_buffer_t),
+    meta_dim.height = 1;
+
+    memset(&reproc_cfg, 0, sizeof(cam_stream_reproc_config_t));
+    reproc_cfg.pp_type = CAM_OFFLINE_REPROCESS_TYPE;
+
+    // input stream config
+    reproc_cfg.offline.input_fmt = meta_stream_fmt;
+    reproc_cfg.offline.input_dim = meta_dim;
+    mm_stream_calc_offset_metadata(&meta_dim, pMetaChannel->getPaddingInfo(),
+            &reproc_cfg.offline.input_buf_planes);
+    reproc_cfg.offline.num_of_bufs = mNumBuffers;
+    reproc_cfg.offline.input_type = CAM_STREAM_TYPE_METADATA;
+
+    reproc_cfg.pp_feature_config.feature_mask = CAM_QCOM_FEATURE_METADATA_PROCESSING;;
+
+    QCamera3Stream *pStream = new QCamera3Stream(m_camHandle,
+            m_handle,
+            m_camOps,
+            pMetaChannel->getPaddingInfo(),
+            (QCamera3Channel*)this);
+
+    rc = pStream->init(CAM_STREAM_TYPE_OFFLINE_PROC, meta_stream_fmt,
+            meta_dim, ROTATE_0, &reproc_cfg,
+            (uint8_t)mNumBuffers,
+            reproc_cfg.pp_feature_config.feature_mask,
+            IS_TYPE_NONE,
+            0,/* batchSize */
+            QCamera3Channel::streamCbRoutine, this);
+
+    if (rc == 0) {
+        mStreams[m_numStreams] = pStream;
+        m_numStreams++;
+    } else {
+        LOGE("failed to create reprocess stream");
+        delete pStream;
+    }
+
+    LOGD("X. rc = %d", rc);
+    return rc;
+}
+
+/*===========================================================================
  * FUNCTION   : addReprocStreamsFromSource
  *
  * DESCRIPTION: add reprocess streams from input source channel
@@ -5002,6 +5295,13 @@ int32_t QCamera3ReprocessChannel::addReprocStreamsFromSource(cam_pp_feature_conf
         LOGD("mReprocessType is %d", mReprocessType);
     }
 
+    // meta reproc stream always appends as the last reproc stream
+    if (pp_config.feature_mask & CAM_QCOM_FEATURE_RAW_PROCESSING) {
+        LOGH("raw process mask is set, need offline isp and meta reprocess");
+        m_bOfflineIsp = TRUE;
+        addMetaReprocStream(pMetaChannel);
+    }
+
     mm_camera_req_buf_t buf;
     memset(&buf, 0x0, sizeof(buf));
     buf.type = MM_CAMERA_REQ_SUPER_BUF;
@@ -5011,6 +5311,12 @@ int32_t QCamera3ReprocessChannel::addReprocStreamsFromSource(cam_pp_feature_conf
     }
     return rc;
 }
+
+bool QCamera3ReprocessChannel::isMetaReprocStream(QCamera3Stream *stream) {
+    return (stream->getStreamInfo()->reprocess_config.offline.input_type
+            == CAM_STREAM_TYPE_METADATA);
+}
+
 
 /* QCamera3SupportChannel methods */
 

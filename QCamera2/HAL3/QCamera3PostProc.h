@@ -118,13 +118,13 @@ public:
             void *user_data);
     int32_t deinit();
     int32_t start(const reprocess_config_t &config);
-    int32_t stop();
+    int32_t stop(bool isHDR = false);
     int32_t flush();
     int32_t processData(qcamera_fwk_input_pp_data_t *frame);
     int32_t processData(mm_camera_super_buf_t *input,
             buffer_handle_t *output, uint32_t frameNumber);
     int32_t processData(mm_camera_super_buf_t *input);
-    int32_t processPPData(mm_camera_super_buf_t *frame);
+    int32_t processPPData(mm_camera_super_buf_t *frame, const metadata_buffer_t *p_metadata = NULL);
     int32_t processPPMetadata(mm_camera_super_buf_t *reproc_meta);
     int32_t processJpegSettingData(jpeg_settings_t *jpeg_settings);
     qcamera_hal3_pp_data_t *dequeuePPJob(uint32_t frameNumber);
@@ -187,6 +187,10 @@ private:
 
     QCameraPerfLockMgr mPerfLockMgr;
     pthread_mutex_t mReprocJobLock;
+    pthread_mutex_t mHDRJobLock;
+    pthread_cond_t mProcChStopCond;
+public:
+    bool mChannelStop;
 };
 
 }; // namespace qcamera
