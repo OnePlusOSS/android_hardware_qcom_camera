@@ -671,12 +671,13 @@ typedef struct cam_capability{
 
     /*Available Spatial Alignment solutions*/
     uint32_t avail_spatial_align_solns;
-
-    /* sensor rotation */
-    int32_t sensor_rotation;
-
+   /* sensor rotation */
+   int32_t sensor_rotation;
     /*Mono Stats support*/
     uint8_t is_mono_stats_suport;
+#ifdef VENDOR_EDIT
+    char sensor_name[32];
+#endif
 } cam_capability_t;
 
 typedef enum {
@@ -839,6 +840,16 @@ typedef struct cam_stream_info {
             (&TABLE_PTR->data.member_variable_##META_ID[ 0 ]) : \
             (NULL)); \
         if (NULL != META_PTR_NAME) \
+
+#ifdef VENDOR_EDIT
+#define IF_META_NOT_AVAILABLE(META_TYPE, META_PTR_NAME, META_ID, TABLE_PTR) \
+        META_TYPE *META_PTR_NAME = \
+        (((NULL != TABLE_PTR) && (TABLE_PTR->is_valid[META_ID])) ? \
+            (&TABLE_PTR->data.member_variable_##META_ID[ 0 ]) : \
+            (NULL)); \
+        if (!META_PTR_NAME) \
+
+#endif
 
 #define ADD_SET_PARAM_ENTRY_TO_BATCH(TABLE_PTR, META_ID, DATA) \
     ((NULL != TABLE_PTR) ? \
@@ -1180,6 +1191,17 @@ typedef struct {
     INCLUDE(CAM_INTF_PARAM_BOKEH_BLUR_LEVEL,            cam_rtb_blur_info_t,         1);
     INCLUDE(CAM_INTF_META_RTB_DATA,                     cam_rtb_msg_type_t,          1);
     INCLUDE(CAM_INTF_META_DC_CAPTURE,                   uint8_t,                     1);
+#ifdef VENDOR_EDIT
+    INCLUDE(CAM_INTF_PARM_FACE_BEAUTY_LEVEL,            uint32_t,                    1);
+    INCLUDE(CAM_INTF_PARM_BOKEH_FACE_BEAUTY_LEVEL,      uint32_t,                    1);
+    INCLUDE(CAM_INTF_PARM_FACE_INFO,                    cam_face_detection_data_t,   1);
+    INCLUDE(CAM_INTF_PARM_BOKEH_DEBUG_INFO,             img_bokeh_debug_info_t,      1);
+    INCLUDE(CAM_INTF_PARM_ENABLE_HW_SYNC,               uint32_t,                    1);
+    INCLUDE(CAM_INTF_PARM_FACE_BEAUTY_ENABLE,           uint32_t,                    1);
+    INCLUDE(CAM_INTF_PARM_BOKEH_FACE_BEAUTY_ENABLE,     uint32_t,                    1);
+    INCLUDE(CAM_INTF_PARM_BOKEH_SETTING_MODE,           uint32_t,                    1);
+    INCLUDE(CAM_INTF_PARM_FACE_UNLOCK_ENABLED,          uint8_t,                     1);
+#endif
 } metadata_data_t;
 
 /* Update clear_metadata_buffer() function when a new is_xxx_valid is added to
