@@ -141,7 +141,7 @@ LOCAL_SHARED_LIBRARIES += libts_face_beautify_hal libts_detected_face_hal
 endif
 
 LOCAL_STATIC_LIBRARIES := android.hardware.camera.common@1.0-helper
-LOCAL_CFLAGS += -Wno-tautological-constant-out-of-range-compare
+
 
 LOCAL_MODULE_RELATIVE_PATH := hw
 LOCAL_MODULE := camera.$(TARGET_BOARD_PLATFORM)
