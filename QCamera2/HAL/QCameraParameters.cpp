@@ -3243,13 +3243,17 @@ int32_t QCameraParameters::setBokehMode(const QCameraParameters& params)
     if (bRequestedBokehMode != m_bBokehMode) {
          m_bBokehMode = bRequestedBokehMode;
          m_bNeedRestart = true;
-         if (m_bBokehMode) {
-            char val[32];
-            int depthW, depthH;
-            getDepthMapSize(depthW, depthH);
-            snprintf(val, sizeof(val), "%dx%d", depthW, depthH);
-            updateParamEntry(KEY_QC_DEPTH_MAP_SIZE, val);
-         }
+        if (ADD_SET_PARAM_ENTRY_TO_BATCH
+                (m_pParamBuf, CAM_INTF_PARM_BOKEH_MODE, m_bBokehMode)) {
+            return BAD_VALUE;
+        }
+        if (m_bBokehMode) {
+           char val[32];
+           int depthW, depthH;
+           getDepthMapSize(depthW, depthH);
+           snprintf(val, sizeof(val), "%dx%d", depthW, depthH);
+           updateParamEntry(KEY_QC_DEPTH_MAP_SIZE, val);
+        }
     }
     if (m_bBokehMode) {
         //Bokeh Mode set, set halpp type
@@ -4730,8 +4734,8 @@ int32_t QCameraParameters::setNoDisplayMode(const QCameraParameters& params)
             m_bNoDisplayModeMain = false;
             m_bNoDisplayModeAux = true;
         } else {
-            m_bNoDisplayModeMain = true;
-            m_bNoDisplayModeAux = false;
+            m_bNoDisplayModeMain = m_pFovControl->isMainCamFovWider();
+            m_bNoDisplayModeAux = !m_bNoDisplayModeMain;
         }
         LOGH("Bokeh m_bNoDisplayModeMain = %d      m_bNoDisplayModeAux = %d",
                 m_bNoDisplayModeMain, m_bNoDisplayModeAux);
@@ -13029,7 +13033,8 @@ int32_t QCameraParameters::setDualCamBundleInfo(bool enable_sync,
         if (isBayerMono())
             bundle_info[num_cam].cam_role = CAM_ROLE_BAYER;
         else
-            bundle_info[num_cam].cam_role = CAM_ROLE_WIDE;
+            bundle_info[num_cam].cam_role =
+                m_pFovControl->isMainCamFovWider() ? CAM_ROLE_WIDE : CAM_ROLE_TELE;
         bundle_info[num_cam].sync_3a_mode = sync_3a_mode;
         m_pCamOpsTbl->ops->get_session_id(
                 get_aux_camera_handle(m_pCamOpsTbl->camera_handle), &sessionID);
@@ -13044,7 +13049,8 @@ int32_t QCameraParameters::setDualCamBundleInfo(bool enable_sync,
         if (isBayerMono())
             bundle_info[num_cam].cam_role = CAM_ROLE_MONO;
         else
-            bundle_info[num_cam].cam_role = CAM_ROLE_TELE;
+            bundle_info[num_cam].cam_role =
+                m_pFovControl->isMainCamFovWider() ? CAM_ROLE_TELE : CAM_ROLE_WIDE;
         bundle_info[num_cam].sync_3a_mode = sync_3a_mode;
         m_pCamOpsTbl->ops->get_session_id(
                 get_main_camera_handle(m_pCamOpsTbl->camera_handle), &sessionID);
