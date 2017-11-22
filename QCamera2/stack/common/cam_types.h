@@ -56,7 +56,11 @@
 #define ZOOM_MIN 4096        // min zoom value: 1x
 #define ZOOM_MAX 4096 * 8 // max zoom value: 8x
 #define MAX_SIZES_CNT 40
+#ifdef VENDOR_EDIT
+#define MAX_EXP_BRACKETING_LENGTH 256
+#else
 #define MAX_EXP_BRACKETING_LENGTH 32
+#endif
 #define MAX_ROI 10
 #define MAX_STREAM_NUM_IN_BUNDLE 8
 #define MAX_NUM_STREAMS          8
@@ -687,6 +691,18 @@ typedef enum {
     CAM_ISO_MODE_800,
     CAM_ISO_MODE_1600,
     CAM_ISO_MODE_3200,
+#ifdef VENDOR_EDIT
+    CAM_ISO_MODE_125,
+    CAM_ISO_MODE_160,
+    CAM_ISO_MODE_250,
+    CAM_ISO_MODE_320,
+    CAM_ISO_MODE_500,
+    CAM_ISO_MODE_640,
+    CAM_ISO_MODE_1000,
+    CAM_ISO_MODE_1250,
+    CAM_ISO_MODE_2000,
+    CAM_ISO_MODE_2500,
+#endif
     CAM_ISO_MODE_MAX
 } cam_iso_mode_type;
 
@@ -802,6 +818,12 @@ typedef enum {
     CAM_SCENE_MODE_BARCODE,
     CAM_SCENE_MODE_HDR,
     CAM_SCENE_MODE_AQUA,
+#ifdef VENDOR_EDIT
+    CAM_SCENE_MODE_MANUAL,
+    CAM_SCENE_MODE_BOKEH,
+    CAM_SCENE_MODE_HDR_AUTO,
+    CAM_SCENE_MODE_THIRDPARTY,
+#endif
     CAM_SCENE_MODE_MAX
 } cam_scene_mode_type;
 
@@ -979,7 +1001,30 @@ typedef enum {
     CAM_RTB_MSG_LOW_LIGHT,
     CAM_RTB_MSG_SUBJECT_NOT_FOUND,
     CAM_RTB_MSG_TOUCH_TO_FOCUS
+#ifdef VENDOR_EDIT
+    ,CAM_RTB_MSG_CAMERA_COVERED
+#endif
 } cam_rtb_msg_type_t;
+
+#ifdef VENDOR_EDIT
+typedef struct {
+  int camera_role; //wide 3; tele 4
+  int start_x;
+  int start_y;
+  int width;
+  int height;
+  float exposure_time;
+  float real_gain;
+  uint8_t aec_status;
+  float lens_shift_um;
+  uint8_t af_status;
+} img_bokeh_debug_info_t;
+
+typedef enum {
+    BOKEH_MASTER_LEFT   =  0,
+    BOKEH_MASTER_RIGHT  =  1
+} BokehSelectMaster;
+#endif
 
 typedef struct {
     uint32_t blur_level;
@@ -1054,6 +1099,10 @@ typedef enum {
 typedef struct {
     cam_bracket_mode mode;
     char values[MAX_EXP_BRACKETING_LENGTH];  /* user defined values */
+#ifdef VENDOR_EDIT
+    uint8_t no_motion_bracket;
+    uint8_t motion_bracket_fast;
+#endif
 } cam_exp_bracketing_t;
 
 typedef struct {
@@ -1302,6 +1351,9 @@ typedef struct {
 typedef struct {
     uint8_t smile_degree;      /* smile degree (0, -100) */
     uint8_t smile_confidence;  /* smile confidence (0, 100) */
+#ifdef VENDOR_EDIT
+    uint8_t is_smile;  /* smile value (0, 1) */
+#endif
 } cam_face_smile_info_t;
 
 typedef struct {
@@ -1340,10 +1392,23 @@ typedef struct {
     cam_face_recog_info_t face_rec[MAX_ROI];
 } cam_face_recog_data_t;
 
+#ifdef VENDOR_EDIT
+#define CV_KEY_POINT_NUM 106
+typedef struct {
+  float x;
+  float y;
+}face_key_point_t;
+#endif
+
 typedef struct {
     int32_t face_id;            /* unique id for face tracking within view unless view changes */
     int8_t score;              /* score of confidence (0, -100) */
     cam_rect_t face_boundary;  /* boundary of face detected */
+#ifdef VENDOR_EDIT
+    face_key_point_t key_point_t[CV_KEY_POINT_NUM];
+    int gender;
+    int race;
+#endif
 } cam_face_detection_info_t;
 
 typedef struct {
@@ -1663,6 +1728,15 @@ typedef struct {
     int32_t est_snap_iso_value;
     uint32_t est_snap_luma;
     uint32_t est_snap_target;
+#ifdef VENDOR_EDIT
+    int32_t is_hdr_scene;
+    float lux_idx;
+    float real_gain;
+    int green_count;
+    int wled_trigger;
+    int is_motion_detected;
+    float gyro_value;
+#endif
 } cam_3a_params_t;
 
 typedef struct {
@@ -2477,6 +2551,17 @@ typedef enum {
     CAM_INTF_META_BINNING_CORRECTION_MODE,
     /* Read Sensor OIS data */
     CAM_INTF_META_OIS_READ_DATA,
+#ifdef VENDOR_EDIT
+    CAM_INTF_PARM_FACE_BEAUTY_LEVEL,
+    CAM_INTF_PARM_BOKEH_FACE_BEAUTY_LEVEL,
+    CAM_INTF_PARM_FACE_INFO,
+    CAM_INTF_PARM_BOKEH_DEBUG_INFO,
+    CAM_INTF_PARM_ENABLE_HW_SYNC,
+    CAM_INTF_PARM_FACE_BEAUTY_ENABLE,
+    CAM_INTF_PARM_BOKEH_FACE_BEAUTY_ENABLE,
+    CAM_INTF_PARM_BOKEH_SETTING_MODE,
+    CAM_INTF_PARM_FACE_UNLOCK_ENABLED,
+#endif
     /*event to flush stream buffers*/
     CAM_INTF_PARM_FLUSH_FRAMES,
     /* set Bokeh Blur Level */
@@ -3111,6 +3196,9 @@ typedef enum {
     CAM_HAL_PP_TYPE_DUAL_FOV,            // dual camera Wide+Tele Dual FOV blending
     CAM_HAL_PP_TYPE_BOKEH,               // dual camera Wide+Tele Snapshot Bokeh
     CAM_HAL_PP_TYPE_CLEARSIGHT,          // dual camera Bayer+Mono Clearsight
+#ifdef VENDOR_EDIT
+    CAM_HAL_PP_TYPE_PARALLEL,            // dual camera with same FOV sensors
+#endif
     CAM_HAL_PP_TYPE_MAX
 } cam_hal_pp_type_t;
 

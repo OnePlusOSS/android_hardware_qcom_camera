@@ -131,6 +131,7 @@ typedef struct {
     cam_sync_mechanism_t sync_mechanism;
     cam_sync_type_t type;
     cam_sync_mode_t mode;
+    cam_3a_sync_mode_t sync_3a_mode;
     cam_3a_sync_config_t sync_3a_config;
     cam_dual_camera_role_t cam_role;
     /* session Id of the other camera session
@@ -678,6 +679,9 @@ typedef struct cam_capability{
     /*Mono Stats support*/
     uint8_t is_mono_stats_suport;
     uint8_t is_depth_sensor;
+#ifdef VENDOR_EDIT
+    char sensor_name[32];
+#endif
 } cam_capability_t;
 
 typedef enum {
@@ -786,6 +790,10 @@ typedef struct cam_stream_info {
 
     cam_stream_parm_buffer_t parm_buf;    /* stream based parameters */
 
+#ifdef VENDOR_EDIT
+    uint8_t eis_enable;/*add by likelong@camera 2017.3.20 for Invensense EIS*/
+#endif
+
     uint8_t dis_enable;
 
     /* Image Stabilization type */
@@ -842,6 +850,16 @@ typedef struct cam_stream_info {
             (&TABLE_PTR->data.member_variable_##META_ID[ 0 ]) : \
             (NULL)); \
         if (NULL != META_PTR_NAME) \
+
+#ifdef VENDOR_EDIT
+#define IF_META_NOT_AVAILABLE(META_TYPE, META_PTR_NAME, META_ID, TABLE_PTR) \
+        META_TYPE *META_PTR_NAME = \
+        (((NULL != TABLE_PTR) && (TABLE_PTR->is_valid[META_ID])) ? \
+            (&TABLE_PTR->data.member_variable_##META_ID[ 0 ]) : \
+            (NULL)); \
+        if (!META_PTR_NAME) \
+
+#endif
 
 #define ADD_SET_PARAM_ENTRY_TO_BATCH(TABLE_PTR, META_ID, DATA) \
     ((NULL != TABLE_PTR) ? \
@@ -1185,6 +1203,17 @@ typedef struct {
     INCLUDE(CAM_INTF_META_RTB_DATA,                     cam_rtb_msg_type_t,          1);
     INCLUDE(CAM_INTF_META_DC_CAPTURE,                   uint8_t,                     1);
     INCLUDE(CAM_INTF_PARM_BOKEH_MODE,                   uint8_t,                     1);
+#ifdef VENDOR_EDIT
+    INCLUDE(CAM_INTF_PARM_FACE_BEAUTY_LEVEL,            uint32_t,                    1);
+    INCLUDE(CAM_INTF_PARM_BOKEH_FACE_BEAUTY_LEVEL,      uint32_t,                    1);
+    INCLUDE(CAM_INTF_PARM_FACE_INFO,                    cam_face_detection_data_t,   1);
+    INCLUDE(CAM_INTF_PARM_BOKEH_DEBUG_INFO,             img_bokeh_debug_info_t,      1);
+    INCLUDE(CAM_INTF_PARM_ENABLE_HW_SYNC,               uint32_t,                    1);
+    INCLUDE(CAM_INTF_PARM_FACE_BEAUTY_ENABLE,           uint32_t,                    1);
+    INCLUDE(CAM_INTF_PARM_BOKEH_FACE_BEAUTY_ENABLE,     uint32_t,                    1);
+    INCLUDE(CAM_INTF_PARM_BOKEH_SETTING_MODE,           uint32_t,                    1);
+    INCLUDE(CAM_INTF_PARM_FACE_UNLOCK_ENABLED,          uint8_t,                     1);
+#endif
 } metadata_data_t;
 
 /* Update clear_metadata_buffer() function when a new is_xxx_valid is added to
