@@ -47,6 +47,7 @@
 #include "QCameraBufferMaps.h"
 #include "QCameraFlash.h"
 #include "QCameraTrace.h"
+#include "QCameraDisplay.h"
 
 extern "C" {
 #include "mm_camera_dbg.h"
@@ -1675,6 +1676,7 @@ QCamera2HardwareInterface::QCamera2HardwareInterface(uint32_t cameraId)
       m_bFirstPreviewFrameReceived(false),
       m_bRecordStarted(false),
       m_bPreparingHardware(false),
+      m_bNeedVideoCb(false),
       m_currentFocusState(CAM_AF_STATE_INACTIVE),
       mDumpFrmCnt(0U),
       mDumpSkipCnt(0U),
@@ -1738,6 +1740,8 @@ QCamera2HardwareInterface::QCamera2HardwareInterface(uint32_t cameraId)
     mCameraDevice.ops = &mCameraOps;
     mCameraDevice.priv = this;
 
+    mCameraDisplay = new QCameraDisplay();
+
     mDualCamera = is_dual_camera_by_idx(cameraId);
     pthread_condattr_t mCondAttr;
 
@@ -1770,6 +1774,12 @@ QCamera2HardwareInterface::QCamera2HardwareInterface(uint32_t cameraId)
 
     mDeferredWorkThread.launch(deferredWorkRoutine, this);
     mDeferredWorkThread.sendCmd(CAMERA_CMD_TYPE_START_DATA_PROC, FALSE, FALSE);
+
+#ifdef USE_DISPLAY_SERVICE
+    DeferWorkArgs args;
+    memset(&args, 0, sizeof(args));
+    queueDeferredWork(CMD_DEF_DISPLAY_INIT, args);
+#endif //USE_DISPLAY_SERVICE
 
     pthread_mutex_init(&mGrallocLock, NULL);
     mEnqueuedBuffers = 0;
@@ -1826,6 +1836,10 @@ QCamera2HardwareInterface::~QCamera2HardwareInterface()
         m_pFovControl = NULL;
     }
 
+    if (mCameraDisplay != NULL) {
+         delete mCameraDisplay;
+         mCameraDisplay = NULL;
+    }
     pthread_mutex_destroy(&m_lock);
     pthread_cond_destroy(&m_cond);
     pthread_mutex_destroy(&m_evtLock);
@@ -2089,6 +2103,13 @@ int QCamera2HardwareInterface::openCamera()
     memset(value, 0, sizeof(value));
     property_get("persist.camera.cache.optimize", value, "1");
     m_bOptimizeCacheOps = atoi(value);
+
+#ifdef USE_DISPLAY_SERVICE
+         if(!mCameraDisplay->startVsync(TRUE))
+         {
+             LOGE("Error: Cannot start vsync (still continue)");
+         }
+#endif //USE_DISPLAY_SERVICE
 
     return NO_ERROR;
 
@@ -2395,6 +2416,10 @@ int QCamera2HardwareInterface::closeCamera()
         LOGD("Failed to release flash for camera id: %d",
                 mCameraId);
     }
+
+#ifdef USE_DISPLAY_SERVICE
+        mCameraDisplay->startVsync(FALSE);
+#endif //Use_DISPLAY_SERVICE
 
     LOGI("[KPI Perf]: X PROFILE_CLOSE_CAMERA camera id %d, rc: %d",
          mCameraId, rc);
@@ -3082,7 +3107,6 @@ QCameraMemory *QCamera2HardwareInterface::allocateStreamBuf(
     if (atoi(value) == 1) {
         bPoolMem = true;
     }
-
     // Allocate stream buffer memory object
     switch (stream_type) {
     case CAM_STREAM_TYPE_PREVIEW:
@@ -4194,7 +4218,7 @@ int QCamera2HardwareInterface::preStartRecording()
 int QCamera2HardwareInterface::startRecording()
 {
     int32_t rc = NO_ERROR;
-
+    bool bCachedMem = QCAMERA_ION_USE_CACHE;
     LOGI("E");
 
     m_perfLockMgr.acquirePerfLockIfExpired(PERF_LOCK_START_RECORDING);
@@ -4228,8 +4252,50 @@ int QCamera2HardwareInterface::startRecording()
         }
     }
 
-    if (rc == NO_ERROR) {
+    if (rc == NO_ERROR && !(mParameters.isVideoFaceBeautification()) ) {
         rc = startChannel(QCAMERA_CH_TYPE_VIDEO);
+    } else {
+        m_bNeedVideoCb = true;
+        QCameraChannel *pChannelreq = NULL;
+        QCameraStream *pStreamreq = NULL;
+        if (m_channels[QCAMERA_CH_TYPE_PREVIEW] != NULL) {
+            pChannelreq = m_channels[QCAMERA_CH_TYPE_PREVIEW];
+            uint32_t streamNum = pChannelreq->getNumOfStreams();
+            QCameraStream *pStream = NULL;
+            for (uint32_t i = 0 ; i < streamNum ; i++ ) {
+                pStream = pChannelreq->getStreamByIndex(i);
+                if ((NULL != pStream) &&
+                        (CAM_STREAM_TYPE_PREVIEW == pStream->getMyType())) {
+                    pStreamreq = pStream;
+                    break;
+                }
+            }
+        }
+        QCameraMemory *previewmem = pStreamreq->getStreamBufs();
+        //Use uncached allocation by default
+        if (mParameters.isVideoBuffersCached() || mParameters.isSeeMoreEnabled() ||
+                mParameters.isHighQualityNoiseReductionMode()) {
+            bCachedMem = QCAMERA_ION_USE_CACHE;
+        } else {
+            bCachedMem = QCAMERA_ION_USE_NOCACHE;
+        }
+
+        videoMemFb = NULL;
+        int usage = 0;
+        cam_format_t fmt;
+        videoMemFb =
+                    new QCameraVideoMemory(mGetMemory, mCallbackCookie, bCachedMem);
+        if (videoMemFb == NULL) {
+            LOGE("Out of memory for video obj");
+            return NULL;
+        }
+        mParameters.getStreamFormat(CAM_STREAM_TYPE_VIDEO,fmt);
+        if (mParameters.isUBWCEnabled() &&
+             (fmt == CAM_FORMAT_YUV_420_NV12_UBWC)) {
+             usage = private_handle_t::PRIV_FLAGS_UBWC_ALIGNED;
+        }
+        videoMemFb->setVideoInfo(usage, fmt);
+        videoMemFb->allocateMetaBufs(VIDEO_FB_BUF_COUNT,previewmem);
     }
 
     if (mParameters.isTNRSnapshotEnabled() && !isLowPowerMode()) {
@@ -4306,6 +4372,9 @@ int QCamera2HardwareInterface::stopRecording()
     m_cbNotifier.flushVideoNotifications();
 
     m_perfLockMgr.releasePerfLock(PERF_LOCK_STOP_RECORDING);
+    if (mParameters.isVideoFaceBeautification()) {
+        m_bNeedVideoCb = false;
+    }
 
     LOGI("X rc = %d", rc);
     return rc;
@@ -4328,10 +4397,14 @@ int QCamera2HardwareInterface::releaseRecordingFrame(const void * opaque)
     int32_t rc = UNKNOWN_ERROR;
     QCameraVideoChannel *pChannel =
             (QCameraVideoChannel *)m_channels[QCAMERA_CH_TYPE_VIDEO];
+    QCameraChannel *pChannelfb =
+            m_channels[QCAMERA_CH_TYPE_PREVIEW];
     LOGD("opaque data = %p",opaque);
 
-    if(pChannel != NULL) {
+    if(pChannel != NULL && !(m_bNeedVideoCb)) {
         rc = pChannel->releaseFrame(opaque, mStoreMetaDataInFrame > 0);
+    } else if (pChannelfb != NULL && (m_bNeedVideoCb)) {
+        rc = pChannelfb->releaseFrame(opaque, mStoreMetaDataInFrame > 0, videoMemFb);
     }
     return rc;
 }
@@ -4362,6 +4435,12 @@ int QCamera2HardwareInterface::autoFocus()
         if (isDualCamera() && mBundledSnapshot) {
             // Force the cameras to stream for auto focus on both
             forceCameraWakeup();
+        }
+        //Send dummy focus event if the active camera doesn't support AF.
+        if (isDualCamera() && !mParameters.isAutoFocusSupported(mActiveCameras)) {
+            mActiveAF = false;
+            rc = sendEvtNotify(CAMERA_MSG_FOCUS, true, 0);
+            break;
         }
         LOGI("Send AUTO FOCUS event. focusMode=%d, m_currentFocusState=%d \
                 mActiveCameras %d, mMasterCamera %d",
@@ -9370,12 +9449,13 @@ int32_t QCamera2HardwareInterface::preparePreview()
                    return rc;
                }
             }
-
-            rc = addChannel(QCAMERA_CH_TYPE_VIDEO);
-            if (rc != NO_ERROR) {
-                delChannel(QCAMERA_CH_TYPE_SNAPSHOT);
-                LOGE("failed!! rc = %d", rc);
-                return rc;
+            if (!(m_bNeedVideoCb)) {
+                rc = addChannel(QCAMERA_CH_TYPE_VIDEO);
+                if (rc != NO_ERROR) {
+                    delChannel(QCAMERA_CH_TYPE_SNAPSHOT);
+                    LOGE("failed!! rc = %d", rc);
+                    return rc;
+                }
             }
         }
 
@@ -11229,6 +11309,13 @@ void *QCamera2HardwareInterface::deferredWorkRoutine(void *obj)
                         job_status = bgTask->bgFunction(bgTask->bgArgs);
                     }
                     break;
+#ifdef USE_DISPLAY_SERVICE
+                case CMD_DEF_DISPLAY_INIT:
+                    {
+                        pme->mCameraDisplay->init();
+                    }
+                    break;
+#endif //USE_DISPLAY_SERVICE
                 default:
                     LOGE("Incorrect command : %d", dw->cmd);
                 }

@@ -1371,6 +1371,13 @@ cam_low_light_mode_t QCameraParametersIntf::getLowLightLevel()
     return mImpl->getLowLightLevel();
 }
 
+bool QCameraParametersIntf::isVideoFaceBeautification()
+{
+    Mutex::Autolock lock(mLock);
+    CHECK_PARAM_INTF(mImpl);
+    return mImpl->isVideoFaceBeautification();
+}
+
 bool QCameraParametersIntf::getLowLightCapture()
 {
     Mutex::Autolock lock(mLock);
@@ -1635,6 +1642,13 @@ void QCameraParametersIntf::getDepthMapSize(int &width, int &height)
     Mutex::Autolock lock(mLock);
     CHECK_PARAM_INTF(mImpl);
     mImpl->getDepthMapSize(width, height);
+}
+
+bool QCameraParametersIntf::isAutoFocusSupported(uint32_t cam_type)
+{
+    Mutex::Autolock lock(mLock);
+    CHECK_PARAM_INTF(mImpl);
+    return mImpl->isAutoFocusSupported(cam_type);
 }
 
 }; // namespace qcamera

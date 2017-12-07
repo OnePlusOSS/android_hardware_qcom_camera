@@ -39,6 +39,7 @@
 
 // Camera dependencies
 #include "QCamera2HWI.h"
+#include "QCameraDisplay.h"
 #include "QCameraTrace.h"
 
 extern "C" {
@@ -759,9 +760,9 @@ void QCamera2HardwareInterface::synchronous_stream_cb_routine(
     // Otherwise, mBootToMonoTimestampOffset value will be 0.
     frameTime = frameTime - pme->mBootToMonoTimestampOffset;
     // Calculate the future presentation time stamp for displaying frames at regular interval
-/*    if (pme->getRecordingHintValue() == true) {
-        mPreviewTimestamp = pme->mCameraDisplay.computePresentationTimeStamp(frameTime);
-    }*/
+    if (pme->getRecordingHintValue() == true) {
+        mPreviewTimestamp = pme->mCameraDisplay->computePresentationTimeStamp(frameTime);
+    }
     stream->mStreamTimestamp = frameTime;
 
     // Enqueue  buffer to gralloc.
@@ -885,7 +886,10 @@ void QCamera2HardwareInterface::preview_stream_cb_routine(mm_camera_super_buf_t 
         pme->TsMakeupProcess_Preview(frame,stream);
 #endif
         err = memory->enqueueBuffer(idx);
-
+        if (pme->m_bNeedVideoCb) {
+            memory->setRefCount(idx,1);
+            video_stream_cb_routine(super_frame,stream,userdata);
+        }
         if (err == NO_ERROR) {
             pthread_mutex_lock(&pme->mGrallocLock);
             pme->mEnqueuedBuffers++;
@@ -951,13 +955,20 @@ void QCamera2HardwareInterface::preview_stream_cb_routine(mm_camera_super_buf_t 
                 }
             }
             // Return dequeued buffer back to driver
-            err = stream->bufDone((uint32_t)dequeuedIdx);
-            if ( err < 0) {
-                LOGW("stream bufDone failed %d", err);
-                err = NO_ERROR;
+            pthread_mutex_lock(&memory->mStatusLock);
+            if (memory->hasPendingRef(dequeuedIdx)) {
+                memory->setRefCount(dequeuedIdx, 0);
+                pthread_mutex_unlock(&memory->mStatusLock);
+            } else {
+                pthread_mutex_unlock(&memory->mStatusLock);
+                err = stream->bufDone((uint32_t)dequeuedIdx);
+                if ( err < 0) {
+                    LOGW("stream bufDone failed %d", err);
+                    err = NO_ERROR;
+                }
             }
             memory->setBufferStatus(dequeuedIdx, STATUS_IDLE);
-       }
+        }
     }
     free(super_frame);
     LOGH("[KPI Perf] : END");
@@ -1324,7 +1335,7 @@ void QCamera2HardwareInterface::secure_stream_cb_routine(
             else {
                 nsecs_t previewTimestamp = 0;
                 // Calculate the future presentation time stamp for displaying frames at regular interval
-//                previewTimestamp = pme->mCameraDisplay.computePresentationTimeStamp(frameTime);
+                previewTimestamp = pme->mCameraDisplay->computePresentationTimeStamp(frameTime);
                 stream->mStreamTimestamp = frameTime;
 
                 err = memory->enqueueBuffer(eIdx, previewTimestamp);
@@ -1613,29 +1624,34 @@ void QCamera2HardwareInterface::video_stream_cb_routine(mm_camera_super_buf_t *s
             pme->dumpFrameToFile(stream, frame, QCAMERA_DUMP_FRM_VIDEO);
             videoMemObj = (QCameraVideoMemory *)frame->mem_info;
             video_mem = NULL;
-            if (NULL != videoMemObj) {
+            if (NULL != videoMemObj && !(pme->m_bNeedVideoCb)) {
                 video_mem = videoMemObj->getMemory(frame->buf_idx,
                         (pme->mStoreMetaDataInFrame > 0)? true : false);
                 triggerTCB = TRUE;
                 LOGH("Video frame TimeStamp : %lld batch = 0 index = %d",
                         timeStamp, frame->buf_idx);
             }
-        } else {
+            if (pme->m_bNeedVideoCb) {
+                video_mem = pme->videoMemFb->getMemory(frame->buf_idx,
+                    (pme->mStoreMetaDataInFrame > 0)? true : false);
+                triggerTCB = TRUE;
+            }
+        }  else {
             //Handle video batch callback
             native_handle_t *nh = NULL;
             pme->dumpFrameToFile(stream, frame, QCAMERA_DUMP_FRM_VIDEO);
             QCameraVideoMemory *videoMemObj = (QCameraVideoMemory *)frame->mem_info;
             if ((stream->mCurMetaMemory == NULL)
-                    || (stream->mCurBufIndex == -1)) {
+                   || (stream->mCurBufIndex == -1)) {
                 //get Free metadata available
                 for (int i = 0; i < CAMERA_MIN_VIDEO_BATCH_BUFFERS; i++) {
-                    if (stream->mStreamMetaMemory[i].consumerOwned == 0) {
-                        stream->mCurMetaMemory = videoMemObj->getMemory(i,true);
-                        stream->mCurBufIndex = 0;
-                        stream->mCurMetaIndex = i;
-                        stream->mStreamMetaMemory[i].numBuffers = 0;
-                        break;
-                    }
+                     if (stream->mStreamMetaMemory[i].consumerOwned == 0) {
+                         stream->mCurMetaMemory = videoMemObj->getMemory(i,true);
+                         stream->mCurBufIndex = 0;
+                         stream->mCurMetaIndex = i;
+                         stream->mStreamMetaMemory[i].numBuffers = 0;
+                         break;
+                     }
                 }
             }
             video_mem = stream->mCurMetaMemory;
@@ -1651,29 +1667,29 @@ void QCamera2HardwareInterface::video_stream_cb_routine(mm_camera_super_buf_t *s
             int index = stream->mCurBufIndex;
             int fd_cnt = pme->mParameters.getVideoBatchSize();
             nsecs_t frame_ts = nsecs_t(frame->ts.tv_sec) * 1000000000LL
-                    + frame->ts.tv_nsec;
+                   + frame->ts.tv_nsec;
             if (index == 0) {
                 stream->mFirstTimeStamp = frame_ts;
             }
 
             stream->mStreamMetaMemory[stream->mCurMetaIndex].buf_index[index]
-                    = (uint8_t)frame->buf_idx;
+                   = (uint8_t)frame->buf_idx;
             stream->mStreamMetaMemory[stream->mCurMetaIndex].numBuffers++;
             stream->mStreamMetaMemory[stream->mCurMetaIndex].consumerOwned
-                    = TRUE;
+                = TRUE;
 
             //Fill video metadata.
             videoMemObj->updateNativeHandle(nh, index,         //native_handle
-                     (int)videoMemObj->getFd(frame->buf_idx),  //FD
-                     (int)videoMemObj->getSize(frame->buf_idx),//Size
-                     (int)(frame_ts - stream->mFirstTimeStamp));
+                    (int)videoMemObj->getFd(frame->buf_idx),  //FD
+                    (int)videoMemObj->getSize(frame->buf_idx),//Size
+                    (int)(frame_ts - stream->mFirstTimeStamp));
 
             stream->mCurBufIndex++;
             if (stream->mCurBufIndex == fd_cnt) {
                 timeStamp = stream->mFirstTimeStamp;
                 LOGH("Video frame to encoder TimeStamp : %lld batch = %d Buffer idx = %d",
-                        timeStamp, fd_cnt,
-                        stream->mCurMetaIndex);
+                       timeStamp, fd_cnt,
+                       stream->mCurMetaIndex);
                 stream->mCurBufIndex = -1;
                 stream->mCurMetaIndex = -1;
                 stream->mCurMetaMemory = NULL;
@@ -1749,8 +1765,9 @@ void QCamera2HardwareInterface::video_stream_cb_routine(mm_camera_super_buf_t *s
             }
         }
     }
-
-    free(super_frame);
+    if (!pme->mParameters.isVideoFaceBeautification()) {
+        free(super_frame);
+    }
     LOGD("[KPI Perf] : END");
 }
 
